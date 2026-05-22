@@ -2283,6 +2283,8 @@ const State = {
   floatingTexts:[],
   // IMPROVEMENT 2: screen shake
   screenShake:0,
+  // Phase 1.1: timing engine
+  dt:1, timeScale:1, hitstopUntil:0, scheduledEvents:[],
   // New V3 state
   unlockedSkills:{},
   doubleDamage:false, doubleDamageEnd:0,
@@ -4953,6 +4955,21 @@ function getEnemyPool() {
   if(State.gameLevel>=7) pool.push('diver');
   return pool;
 }
+// ─── Phase 1.1: scheduled-events queue (replaces setTimeout in game loop) ───
+function scheduleEvent(delayMs, fn) {
+  State.scheduledEvents.push({ time: performance.now() + delayMs, fn, done:false });
+}
+function processScheduledEvents() {
+  const q = State.scheduledEvents;
+  if(!q.length) return;
+  const now = performance.now();
+  for(let i=0;i<q.length;i++){
+    const ev = q[i];
+    if(!ev.done && now >= ev.time){ ev.done = true; try{ ev.fn(); }catch(e){ console.error(e); } }
+  }
+  if(q.some(e=>e.done)) State.scheduledEvents = q.filter(e=>!e.done);
+}
+
 function spawnEnemy() {
   const now=Date.now();
   let interval;
@@ -4967,7 +4984,7 @@ function spawnEnemy() {
   if(State.survivorMode) count=Math.min(Math.floor(State.survivorElapsed/30)+1,5);
   const surMult=State.survivorMode?(DIFFICULTY_CFG[State.survivorDifficulty]?.multiplier??1):1;
   for(let i=0;i<count;i++) {
-    setTimeout(()=>{
+    scheduleEvent(i*200,()=>{
       const type=pool[Math.floor(Math.random()*pool.length)];
       const enemy=createEnemy(type);
       if(State.infiniteMode&&type==='tank') enemy.health=Math.min(3+Math.floor(State.wave/5),10);
@@ -4978,7 +4995,7 @@ function spawnEnemy() {
         if(type==='spinner'){enemy.health=Math.max(1,Math.floor(2*surMult));enemy.maxHealth=enemy.health;enemy.shootInterval=Math.max(500,enemy.shootInterval/surMult);}
       }
       State.enemies.push(enemy);
-    },i*200);
+    });
   }
 }
 
@@ -7407,7 +7424,30 @@ function handleOpenWorldKey(key) {
 // ═══════════════════════════════════════════════════════════════════
 // SECTION 28 – MAIN GAME LOOP (IMPROVEMENT 2: screen shake)
 // ═══════════════════════════════════════════════════════════════════
-function gameLoop() {
+// ─── Phase 1.1: delta-time + fixed-timestep driver ───
+const FIXED_DT = 1000/60;
+let _lastFrameTime = 0, _accumulator = 0;
+
+function gameLoop(ts) {
+  if(!State.running || State.paused) { _lastFrameTime = 0; return; }
+  if(typeof ts !== 'number') ts = performance.now();
+  if(!_lastFrameTime) { _lastFrameTime = ts; _accumulator = 0; }
+  let frameTime = ts - _lastFrameTime;
+  _lastFrameTime = ts;
+  if(frameTime > 250) frameTime = 250;          // clamp after tab stalls
+  if(ts < State.hitstopUntil) { requestAnimationFrame(gameLoop); return; }  // hitstop
+  _accumulator += frameTime * State.timeScale;  // timeScale<1 = slowmo
+  let ticks = 0;
+  while(_accumulator >= FIXED_DT && ticks < 5) {  // cap 5 = no spiral of death
+    gameTick();
+    _accumulator -= FIXED_DT;
+    ticks++;
+    if(!State.running || State.paused) break;
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+function gameTick() {
   if(!State.running||State.paused) return;
 
   // Online multiplayer sync
@@ -7442,6 +7482,7 @@ function gameLoop() {
 
   updateGamepadControls();
   updateTimersPerFrame();
+  processScheduledEvents();
 
   if(State.openWorldMode) {
     // Update camera and sector
@@ -7552,8 +7593,6 @@ function gameLoop() {
     const lvl=State.bossRushIndex+1;
     if(lvl<=BOSSES_DATA.length){State.boss=new Boss(lvl);playSound('levelUpSound');}
   }
-
-  requestAnimationFrame(gameLoop);
 }
 
 
