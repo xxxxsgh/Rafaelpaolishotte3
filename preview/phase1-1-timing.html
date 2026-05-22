@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Preview 1.1 — Timing Engine</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0a14;color:#e6e6f0;
+    font-family:-apple-system,Segoe UI,monospace;-webkit-user-select:none;user-select:none;}
+  #wrap{display:flex;flex-direction:column;height:100%;}
+  h1{font-size:15px;margin:10px 12px 4px;color:#00f5ff;}
+  p.sub{font-size:11px;margin:0 12px 8px;color:#8a8aa0;}
+  canvas{flex:0 0 auto;display:block;margin:0 auto;background:#06060f;
+    border:1px solid #1e1e34;border-radius:8px;touch-action:none;}
+  #hud{font-size:12px;margin:8px 12px;line-height:1.7;}
+  #hud b{color:#39ff14;}
+  .row{display:flex;flex-wrap:wrap;gap:8px;margin:6px 12px;}
+  button{flex:1 1 40%;min-height:46px;font-size:13px;font-weight:700;
+    background:#15152a;color:#e6e6f0;border:1px solid #33335a;border-radius:8px;}
+  button:active{background:#00f5ff;color:#06060f;}
+  .ok{color:#39ff14;} .bad{color:#ff4060;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>Phase 1.1 — Fixed-Timestep Engine</h1>
+  <p class="sub">A barra branca cruza a tela em exatamente 2.0s, independente do FPS.
+  Use os botoes pra estressar o loop e confirmar que a velocidade NAO muda.</p>
+  <canvas id="c" width="340" height="200"></canvas>
+  <div id="hud">
+    rAF FPS: <b id="fps">--</b> &nbsp; ticks/s: <b id="tps">--</b><br>
+    timeScale: <b id="ts">1.00</b> &nbsp; hitstop: <b id="hs">off</b><br>
+    travessia (alvo 2.000s): <b id="lap">--</b><br>
+    veredito: <span id="verdict">aguardando...</span>
+  </div>
+  <div class="row">
+    <button id="bThrottle">Throttle 20fps render</button>
+    <button id="bHitstop">Hitstop 600ms</button>
+  </div>
+  <div class="row">
+    <button id="bSlow">Slow-mo 0.3x (1.5s)</button>
+    <button id="bReset">Reset</button>
+  </div>
+</div>
+<script>
+// ─── Mesma logica do index.html (Phase 1.1) ───
+const State = { running:true, paused:false, timeScale:1, hitstopUntil:0 };
+const FIXED_DT = 1000/60;
+let _lastFrameTime = 0, _accumulator = 0;
+
+const c = document.getElementById('c'), ctx = c.getContext('2d');
+// barra: 2.0s para cruzar => velocidade por tick (60Hz) = largura util / (2*60)
+const W = c.width, H = c.height, BAR = 18;
+const SPEED = (W - BAR) / (2 * 60);   // px por tick
+let boxX = 0, dir = 1;
+
+// medidores
+let renderFrames = 0, ticks = 0, fpsT = performance.now(), throttle = false, lastRender = 0;
+let lapStart = performance.now(), lastDir = 1;
+
+function gameTick() {
+  boxX += SPEED * dir;
+  if (boxX <= 0)        { boxX = 0;        dir = 1; }
+  if (boxX >= W - BAR)  { boxX = W - BAR;  dir = -1; }
+  if (dir !== lastDir) {                       // completou meia travessia
+    const lap = (performance.now() - lapStart) / 1000;
+    document.getElementById('lap').textContent = lap.toFixed(3) + 's';
+    const v = document.getElementById('verdict');
+    const good = Math.abs(lap - 2) < 0.12;
+    v.textContent = good ? 'PASS — velocidade estavel' : 'FALHOU — variou demais';
+    v.className = good ? 'ok' : 'bad';
+    lapStart = performance.now();
+    lastDir = dir;
+  }
+  ticks++;
+}
+
+function render() {
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#06060f'; ctx.fillRect(0,0,W,H);
+  // trilhos
+  ctx.strokeStyle = '#1e1e34';
+  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  // barra
+  ctx.fillStyle = State.hitstopUntil > performance.now() ? '#ff4060'
+               : State.timeScale < 1 ? '#ffd000' : '#ffffff';
+  ctx.fillRect(boxX, H/2 - 22, BAR, 44);
+}
+
+function gameLoop(ts) {
+  if (typeof ts !== 'number') ts = performance.now();
+  if (!_lastFrameTime) { _lastFrameTime = ts; _accumulator = 0; }
+  let frameTime = ts - _lastFrameTime;
+  _lastFrameTime = ts;
+  if (frameTime > 250) frameTime = 250;
+  if (ts < State.hitstopUntil) { requestAnimationFrame(gameLoop); return; }
+  _accumulator += frameTime * State.timeScale;
+  let n = 0;
+  while (_accumulator >= FIXED_DT && n < 5) { gameTick(); _accumulator -= FIXED_DT; n++; }
+
+  // throttle so do RENDER (o sim continua via accumulator)
+  if (!throttle || ts - lastRender >= 50) { render(); renderFrames++; lastRender = ts; }
+  else renderFrames++;
+
+  // medidores 1x/s
+  if (ts - fpsT >= 1000) {
+    document.getElementById('fps').textContent = renderFrames;
+    document.getElementById('tps').textContent = ticks;
+    renderFrames = 0; ticks = 0; fpsT = ts;
+  }
+  document.getElementById('ts').textContent = State.timeScale.toFixed(2);
+  document.getElementById('hs').textContent = State.hitstopUntil > ts ? 'ON' : 'off';
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+
+document.getElementById('bThrottle').onclick = e => {
+  throttle = !throttle;
+  e.target.textContent = throttle ? 'Throttle ON (render ~20fps)' : 'Throttle 20fps render';
+};
+document.getElementById('bHitstop').onclick = () => {
+  State.hitstopUntil = performance.now() + 600;
+};
+document.getElementById('bSlow').onclick = () => {
+  State.timeScale = 0.3;
+  setTimeout(() => { State.timeScale = 1; }, 1500);
+};
+document.getElementById('bReset').onclick = () => {
+  boxX = 0; dir = 1; lastDir = 1; State.timeScale = 1; State.hitstopUntil = 0;
+  throttle = false; document.getElementById('bThrottle').textContent = 'Throttle 20fps render';
+  lapStart = performance.now();
+  document.getElementById('verdict').textContent = 'aguardando...';
+  document.getElementById('verdict').className = '';
+};
+</script>
+</body>
+</html>
