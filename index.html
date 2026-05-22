@@ -2282,7 +2282,7 @@ const State = {
   // IMPROVEMENT 1: floating score texts
   floatingTexts:[],
   // IMPROVEMENT 2: screen shake
-  screenShake:0,
+  screenShake:0, trauma:0,
   // Phase 1.1: timing engine
   dt:1, timeScale:1, hitstopUntil:0, scheduledEvents:[],
   slowmoUntil:0, slowmoScale:1,
@@ -2682,7 +2682,7 @@ function triggerExplosion(x,y,color='#ff6600',count=25) {
   State.explosions.push(new Explosion(x,y,color,c));
   playSound('explosionSound');
   // IMPROVEMENT 2: screen shake
-  State.screenShake = Math.max(State.screenShake, 5);
+  addTrauma(0.15);
 }
 
 // ─ Floating text
@@ -4858,7 +4858,7 @@ function startGame() {
   State.lastEnemySpawn=Date.now(); State.gameStartTime=Date.now();
   State.powerUpActive=false; State.shieldActive=false;
   State.stats.phaseDamageTaken=0; State.stats.currentCombo=0; State.stats.lastKillTime=0;
-  State.screenShake=0;
+  State.screenShake=0; State.trauma=0;
   State.doubleDamage=false; State.phoenixUsed=false;
   State._dailyCoinMult=1; State._dailyNoShield=false; State._dailyFastBoss=false; State._dailyScoreMult=1;
   // Reset run-specific equipment state
@@ -4979,8 +4979,12 @@ function triggerSlowmo(scale, durationMs) {
   State.slowmoScale = scale;
   State.slowmoUntil = performance.now() + durationMs;
 }
+// Phase 1.2: trauma-based screen shake (shake = trauma², decays linearly)
+function addTrauma(amount) {
+  State.trauma = Math.min(1, State.trauma + amount);
+}
 function flashScreen(ms) {
-  if(window.SETTINGS_EXTENDED && SETTINGS_EXTENDED.flashEffectsEnabled === false) return;
+  if(SETTINGS_EXTENDED.flashEffectsEnabled === false) return;
   const f = document.getElementById('warpFlash');
   if(!f) return;
   f.style.background = '#fff';
@@ -5036,7 +5040,7 @@ function handleEnemyDeath(enemy,eIdx,killerPlayer) {
   if(enemy.type==='bomber') {
     State.stats.bombersKilled++;
     triggerExplosion(enemy.x+enemy.width/2,enemy.y+enemy.height/2,'#ff6600',60);
-    State.screenShake=Math.max(State.screenShake,10);
+    addTrauma(0.35);
     State.players.forEach(p=>{
       const dx=(p.x+p.width/2)-(enemy.x+enemy.width/2);
       const dy=(p.y+p.height/2)-(enemy.y+enemy.height/2);
@@ -5148,7 +5152,7 @@ function handlePlayerDamage(player) {
   vig.style.opacity='1';
   setTimeout(()=>{vig.style.transition='opacity 0.5s'; vig.style.opacity='0';},150);
   // IMPROVEMENT 2: strong screen shake on hit
-  State.screenShake=12;
+  addTrauma(0.6);
   if(State.pvpMode) {
     // Draw PvP divider line and life counters on canvas
     if(player.lives<=0) {
@@ -5164,6 +5168,7 @@ function handleBossDefeat() {
   // Phase 1.1: boss death = freeze frame + fullscreen white flash
   triggerHitstop(200);
   flashScreen(120);
+  addTrauma(1);
   // Open world boss defeat handling
   if(State.openWorldMode) {
     State.stats.bossesDefeated++;
@@ -5258,7 +5263,7 @@ function handlePowerupCollection(power,pIdx,collector) {
         handleEnemyDeath(be,bi,collector);
       }
       showWaveAnnounce('BOMB! ALL CLEARED','#cc00ff');
-      State.screenShake=15; break;
+      addTrauma(0.7); break;
   }
   playSound('powerupSound'); State.powerUps.splice(pIdx,1); checkAchievements();
 }
@@ -6033,7 +6038,7 @@ function startOpenWorldMode() {
   State.lastEnemySpawn=Date.now(); State.gameStartTime=Date.now();
   State.powerUpActive=false; State.shieldActive=false;
   State.stats.phaseDamageTaken=0; State.stats.currentCombo=0; State.stats.lastKillTime=0;
-  State.screenShake=0;
+  State.screenShake=0; State.trauma=0;
   State.doubleDamage=false; State.phoenixUsed=false;
   State.runEquipment={weapon:null,armor:null,accessory:null,relic:null};
   State.activeSynergies=[];
@@ -7501,13 +7506,14 @@ function gameTick() {
 
   // Screen shake
   let sx=0, sy=0;
-  if(State.screenShake>0) {
-    sx=(Math.random()-0.5)*State.screenShake;
-    sy=(Math.random()-0.5)*State.screenShake;
-    State.screenShake*=0.85;
-    if(State.screenShake<0.5) State.screenShake=0;
+  if(SETTINGS_EXTENDED.screenShakeEnabled !== false && State.trauma>0) {
+    const _amt=State.trauma*State.trauma*16;        // trauma-squared = chunky shake
+    sx=(Math.random()*2-1)*_amt;
+    sy=(Math.random()*2-1)*_amt;
+    State.trauma=Math.max(0,State.trauma-0.025);     // ~1.5/s linear decay
+    State.screenShake=_amt;
     CTX.save(); CTX.translate(sx,sy);
-  }
+  } else { State.screenShake=0; }
 
   CTX.clearRect(-10,-10,CANVAS.width+20,CANVAS.height+20);
   drawStars();
@@ -7971,7 +7977,7 @@ function spawnOpenWorldPowerUp(x, y) {
 // ─── WARP EFFECT WHEN USING WORMHOLE / GATE ───────────────────────
 
 function triggerWarpEffect(targetX, targetY, color) {
-  State.screenShake = 15;
+  addTrauma(0.5);
   triggerExplosion(targetX, targetY, color||'#7b2fff', 40);
   for(let i=0;i<8;i++) {
     const angle=i/8*Math.PI*2;
