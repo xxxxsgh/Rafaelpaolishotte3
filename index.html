@@ -2285,6 +2285,7 @@ const State = {
   screenShake:0,
   // Phase 1.1: timing engine
   dt:1, timeScale:1, hitstopUntil:0, scheduledEvents:[],
+  slowmoUntil:0, slowmoScale:1,
   // New V3 state
   unlockedSkills:{},
   doubleDamage:false, doubleDamageEnd:0,
@@ -3597,7 +3598,7 @@ class Boss {
         break;
       }
       case 'burst':
-        for(let i=0;i<3;i++) setTimeout(()=>this.bullets.push(new EnemyBullet(cx,bot,(Math.random()-0.5)*2,rage?7:5)),i*300);
+        for(let i=0;i<3;i++) scheduleEvent(i*300,()=>this.bullets.push(new EnemyBullet(cx,bot,(Math.random()-0.5)*2,rage?7:5)));
         break;
       case 'spiral': {
         const sa=Date.now()/200;
@@ -3606,10 +3607,10 @@ class Boss {
       }
       case 'fireball': { const count=3+Math.floor(this.level/2)+(rage?2:0); for(let i=0;i<count;i++){const a=Math.random()*Math.PI-Math.PI/2; this.bullets.push(new EnemyBullet(cx,cy,Math.cos(a)*5,Math.abs(Math.sin(a))*5,'#ff4500'));} break; }
       case 'ice_shard': { const count=4+Math.floor(this.level/2)+(rage?2:0); for(let i=0;i<count;i++) this.bullets.push(new EnemyBullet(cx,bot,(Math.random()-0.5)*2,3,'#00bfff')); break; }
-      case 'laser_grid': { const count=3+Math.floor(this.level/3)+(rage?2:0); for(let i=0;i<count;i++) setTimeout(()=>this.bullets.push(new EnemyBullet(this.x+(this.width/(count+1))*(i+1),bot,0,5,'#39ff14')),i*200); break; }
+      case 'laser_grid': { const count=3+Math.floor(this.level/3)+(rage?2:0); for(let i=0;i<count;i++) scheduleEvent(i*200,()=>this.bullets.push(new EnemyBullet(this.x+(this.width/(count+1))*(i+1),bot,0,5,'#39ff14'))); break; }
       case 'black_hole': this.bullets.push(new EnemyBullet(cx,cy,0,1.5,'#aa00ff')); break;
       case 'ultimate':
-        ['spiral','fan','burst','triple'].forEach((p,i)=>setTimeout(()=>{this.pattern=p;},i*400)); break;
+        ['spiral','fan','burst','triple'].forEach((p,i)=>scheduleEvent(i*400,()=>{this.pattern=p;})); break;
       case 'amalgam': {
         // Cycle through random existing patterns every 3 shots
         const patterns=['triple','fan','circle','burst','spiral','fireball','ice_shard','laser_grid','black_hole'];
@@ -4851,7 +4852,7 @@ function startGame() {
   hideAllOverlays();
   CANVAS.style.display='block';
   State.running=true; State.paused=false;
-  State.enemies=[]; State.boss=null; State.powerUps=[]; State.explosions=[]; State.xpOrbs=[];
+  State.enemies=[]; State.boss=null; State.powerUps=[]; State.explosions=[]; State.xpOrbs=[]; State.scheduledEvents=[];
   State.floatingTexts=[]; State.scores=[0,0];
   State.gameLevel=1; State.wave=1; State.bossSpawned=false; State.uniqueSpawned=false;
   State.lastEnemySpawn=Date.now(); State.gameStartTime=Date.now();
@@ -4970,6 +4971,29 @@ function processScheduledEvents() {
   if(q.some(e=>e.done)) State.scheduledEvents = q.filter(e=>!e.done);
 }
 
+// ─── Phase 1.1: hitstop / slow-motion / screen flash ───
+function triggerHitstop(ms) {
+  State.hitstopUntil = Math.max(State.hitstopUntil, performance.now() + ms);
+}
+function triggerSlowmo(scale, durationMs) {
+  State.slowmoScale = scale;
+  State.slowmoUntil = performance.now() + durationMs;
+}
+function flashScreen(ms) {
+  if(window.SETTINGS_EXTENDED && SETTINGS_EXTENDED.flashEffectsEnabled === false) return;
+  const f = document.getElementById('warpFlash');
+  if(!f) return;
+  f.style.background = '#fff';
+  f.style.transition = 'opacity 0.04s';
+  f.style.display = 'block';
+  f.style.opacity = '0.9';
+  setTimeout(() => {
+    f.style.transition = 'opacity 0.2s';
+    f.style.opacity = '0';
+    setTimeout(() => { f.style.display = 'none'; }, 240);
+  }, ms || 100);
+}
+
 function spawnEnemy() {
   const now=Date.now();
   let interval;
@@ -5019,6 +5043,8 @@ function handleEnemyDeath(enemy,eIdx,killerPlayer) {
       if(Math.hypot(dx,dy)<80&&!p.invincible) handlePlayerDamage(p);
     });
   }
+  // Phase 1.1: brief freeze frame when a heavy enemy dies
+  if(enemy.type==='tank'||enemy.type==='bomber') triggerHitstop(55);
 
   const now=Date.now();
   if(now-State.stats.lastKillTime<5000) State.stats.currentCombo++;
@@ -5135,6 +5161,9 @@ function handlePlayerDamage(player) {
 }
 
 function handleBossDefeat() {
+  // Phase 1.1: boss death = freeze frame + fullscreen white flash
+  triggerHitstop(200);
+  flashScreen(120);
   // Open world boss defeat handling
   if(State.openWorldMode) {
     State.stats.bossesDefeated++;
@@ -5998,7 +6027,7 @@ function startOpenWorldMode() {
   State.running=true; State.paused=false;
   State.openWorldMode=true;
   State.infiniteMode=false; State.survivorMode=false; State.bossRushMode=false;
-  State.enemies=[]; State.boss=null; State.powerUps=[]; State.explosions=[]; State.xpOrbs=[];
+  State.enemies=[]; State.boss=null; State.powerUps=[]; State.explosions=[]; State.xpOrbs=[]; State.scheduledEvents=[];
   State.floatingTexts=[]; State.scores=[0,0];
   State.gameLevel=1; State.wave=1; State.bossSpawned=false; State.uniqueSpawned=false;
   State.lastEnemySpawn=Date.now(); State.gameStartTime=Date.now();
@@ -7435,6 +7464,9 @@ function gameLoop(ts) {
   let frameTime = ts - _lastFrameTime;
   _lastFrameTime = ts;
   if(frameTime > 250) frameTime = 250;          // clamp after tab stalls
+  // Phase 1.1: slow-motion with smooth release back to 1.0
+  if(State.slowmoUntil > ts) State.timeScale = State.slowmoScale;
+  else if(State.timeScale < 1) State.timeScale = Math.min(1, State.timeScale + frameTime/250);
   if(ts < State.hitstopUntil) { requestAnimationFrame(gameLoop); return; }  // hitstop
   _accumulator += frameTime * State.timeScale;  // timeScale<1 = slowmo
   let ticks = 0;
