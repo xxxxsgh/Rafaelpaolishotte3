@@ -41,10 +41,15 @@
     <button id="bSlow">Slow-mo 0.3x (1.5s)</button>
     <button id="bReset">Reset</button>
   </div>
+  <div class="row">
+    <button id="bBoss">BOSS KILL (hitstop+flash+shake 1.0)</button>
+  </div>
 </div>
+<div id="flash" style="position:fixed;inset:0;background:#fff;opacity:0;
+  pointer-events:none;transition:opacity .04s;"></div>
 <script>
-// ─── Mesma logica do index.html (Phase 1.1) ───
-const State = { running:true, paused:false, timeScale:1, hitstopUntil:0 };
+// ─── Mesma logica do index.html (Phase 1.1 + 1.2) ───
+const State = { running:true, paused:false, timeScale:1, hitstopUntil:0, trauma:0 };
 const FIXED_DT = 1000/60;
 let _lastFrameTime = 0, _accumulator = 0;
 
@@ -59,6 +64,7 @@ let renderFrames = 0, ticks = 0, fpsT = performance.now(), throttle = false, las
 let lapStart = performance.now(), lastDir = 1;
 
 function gameTick() {
+  if(State.trauma > 0) State.trauma = Math.max(0, State.trauma - 0.025);
   boxX += SPEED * dir;
   if (boxX <= 0)        { boxX = 0;        dir = 1; }
   if (boxX >= W - BAR)  { boxX = W - BAR;  dir = -1; }
@@ -78,13 +84,22 @@ function gameTick() {
 function render() {
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle = '#06060f'; ctx.fillRect(0,0,W,H);
-  // trilhos
+  ctx.save();
+  if(State.trauma > 0) {                       // trauma² shake
+    const a = State.trauma*State.trauma*16;
+    ctx.translate((Math.random()*2-1)*a, (Math.random()*2-1)*a);
+  }
   ctx.strokeStyle = '#1e1e34';
   ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
-  // barra
   ctx.fillStyle = State.hitstopUntil > performance.now() ? '#ff4060'
                : State.timeScale < 1 ? '#ffd000' : '#ffffff';
   ctx.fillRect(boxX, H/2 - 22, BAR, 44);
+  ctx.restore();
+}
+function flashScreen(ms){
+  const f=document.getElementById('flash');
+  f.style.transition='opacity .04s'; f.style.opacity='0.9';
+  setTimeout(()=>{ f.style.transition='opacity .2s'; f.style.opacity='0'; }, ms);
 }
 
 function gameLoop(ts) {
@@ -125,7 +140,13 @@ document.getElementById('bSlow').onclick = () => {
   State.timeScale = 0.3;
   setTimeout(() => { State.timeScale = 1; }, 1500);
 };
+document.getElementById('bBoss').onclick = () => {
+  State.hitstopUntil = performance.now() + 200;   // freeze frame
+  State.trauma = Math.min(1, State.trauma + 1);    // max shake
+  flashScreen(120);                                // white flash
+};
 document.getElementById('bReset').onclick = () => {
+  State.trauma = 0;
   boxX = 0; dir = 1; lastDir = 1; State.timeScale = 1; State.hitstopUntil = 0;
   throttle = false; document.getElementById('bThrottle').textContent = 'Throttle 20fps render';
   lapStart = performance.now();
