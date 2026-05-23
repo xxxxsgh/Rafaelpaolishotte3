@@ -41,7 +41,7 @@
       display: none; z-index: 10;
       min-width: 360px;
       border: 1px solid rgba(0,245,255,0.3);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(8px);
       clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
     }
     .overlay::before {
@@ -320,7 +320,7 @@
       transform: translate(-50%,-50%);
       background: var(--panel);
       border: 1px solid rgba(0,245,255,0.2);
-      backdrop-filter: blur(16px);
+      backdrop-filter: blur(8px);
       padding: 28px; border-radius: 4px;
       width: min(600px,90vw); max-height: 80vh;
       overflow-y: auto; display: none; z-index: 15;
@@ -396,7 +396,7 @@
     #upgradeScreen {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%,-50%);
-      background: var(--panel); backdrop-filter: blur(16px);
+      background: var(--panel); backdrop-filter: blur(8px);
       border: 1px solid rgba(57,255,20,0.3);
       padding: 28px; width: min(560px,90vw);
       display: none; z-index: 15;
@@ -805,7 +805,7 @@
     #questLogOverlay {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%,-50%);
-      background: var(--panel); backdrop-filter: blur(16px);
+      background: var(--panel); backdrop-filter: blur(8px);
       border: 1px solid rgba(255,170,0,0.4);
       padding: 28px; width: min(560px,92vw); max-height: 80vh;
       overflow-y: auto; display: none; z-index: 18;
@@ -831,7 +831,7 @@
     #craftingOverlay {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%,-50%);
-      background: var(--panel); backdrop-filter: blur(16px);
+      background: var(--panel); backdrop-filter: blur(8px);
       border: 1px solid rgba(123,47,255,0.4);
       padding: 28px; width: min(500px,92vw); max-height: 80vh;
       overflow-y: auto; display: none; z-index: 18;
@@ -860,7 +860,7 @@
     #fleetOverlay {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%,-50%);
-      background: var(--panel); backdrop-filter: blur(16px);
+      background: var(--panel); backdrop-filter: blur(8px);
       border: 1px solid rgba(0,255,136,0.4);
       padding: 28px; width: min(560px,92vw); max-height: 80vh;
       overflow-y: auto; display: none; z-index: 18;
@@ -890,7 +890,7 @@
     #galaxyMapOverlay {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%,-50%);
-      background: rgba(2,8,23,0.97); backdrop-filter: blur(20px);
+      background: rgba(2,8,23,0.97); backdrop-filter: blur(10px);
       border: 1px solid rgba(0,245,255,0.3);
       padding: 20px; width: min(700px,96vw); max-height: 90vh;
       overflow-y: auto; display: none; z-index: 18;
@@ -969,7 +969,7 @@
     #tradeOverlay {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%,-50%);
-      background: var(--panel); backdrop-filter: blur(16px);
+      background: var(--panel); backdrop-filter: blur(8px);
       border: 1px solid rgba(0,255,136,0.4);
       padding: 28px; width: min(480px,92vw);
       display: none; z-index: 18;
@@ -1768,9 +1768,42 @@
 // SECTION 1 – CONSTANTS
 // ═══════════════════════════════════════════════════════════════════
 const CANVAS = document.getElementById('gameCanvas');
-const CTX    = CANVAS.getContext('2d');
+const CTX    = CANVAS.getContext('2d', { willReadFrequently:false, alpha:true });
 const BGCANVAS = document.getElementById('bgCanvas');
-const BGCTX    = BGCANVAS.getContext('2d');
+const BGCTX    = BGCANVAS.getContext('2d', { willReadFrequently:false, alpha:true });
+
+// ─── Phase 2.1: DPR-aware backing store (Retina-crisp) ───
+// CANVAS.width / CANVAS.height keep returning CSS pixels (compat with all
+// gameplay code), while the underlying backing store is sized for devicePixelRatio
+// and the 2D context is pre-scaled. No gameplay reference needs to change.
+(function setupDPI(){
+  const _wSet = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype,'width').set;
+  const _hSet = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype,'height').set;
+  const dpr   = Math.min(window.devicePixelRatio || 1, 2);   // cap at 2 for perf
+  function attach(c, ctx){
+    let cssW = window.innerWidth, cssH = window.innerHeight;
+    c.style.width  = cssW + 'px';
+    c.style.height = cssH + 'px';
+    _wSet.call(c, Math.floor(cssW*dpr));
+    _hSet.call(c, Math.floor(cssH*dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    Object.defineProperty(c, 'width', {
+      configurable:true,
+      get(){ return cssW; },
+      set(v){ cssW = v; c.style.width = v+'px';
+        _wSet.call(c, Math.floor(v*dpr)); ctx.setTransform(dpr,0,0,dpr,0,0); }
+    });
+    Object.defineProperty(c, 'height', {
+      configurable:true,
+      get(){ return cssH; },
+      set(v){ cssH = v; c.style.height = v+'px';
+        _hSet.call(c, Math.floor(v*dpr)); ctx.setTransform(dpr,0,0,dpr,0,0); }
+    });
+    c._dpr = dpr;
+  }
+  try { attach(CANVAS, CTX); attach(BGCANVAS, BGCTX); }
+  catch(e){ console.warn('DPR attach failed, falling back to 1x', e); }
+})();
 
 // ─ Web Audio API – Synthesized Sounds ─
 let _audioCtx = null;
@@ -2684,6 +2717,8 @@ class Explosion {
 
 function triggerExplosion(x,y,color='#ff6600',count=25) {
   const c = fxHighQuality ? count : Math.max(6, Math.floor(count * 0.4));
+  // Phase 2.2: cap concurrent legacy Explosion objects (~200 particles ceiling)
+  if(State.explosions.length >= 24) State.explosions.shift();
   State.explosions.push(new Explosion(x,y,color,c));
   playSound('explosionSound');
   // IMPROVEMENT 2: screen shake
@@ -3779,8 +3814,16 @@ function addCoins(amount) {
   updateHUD(); checkAchievements(); saveGameData();
 }
 
+// Phase 2.3: debounce + idle-defer save so localStorage writes never block a frame
 function saveGameData() {
-  try { localStorage.setItem('rafaPaoliV2',JSON.stringify({coins:State.coins,unlockedSkins:State.unlockedSkins,equippedSkin:State.equippedSkin,achievements:State.achievements,difficulty:State.difficulty,stats:State.stats,unlockedSkills:State.unlockedSkills,unlockedChars:State.unlockedChars})); } catch(e){}
+  if(saveGameData._queued) return;
+  saveGameData._queued = true;
+  const body = () => {
+    saveGameData._queued = false;
+    try { localStorage.setItem('rafaPaoliV2',JSON.stringify({coins:State.coins,unlockedSkins:State.unlockedSkins,equippedSkin:State.equippedSkin,achievements:State.achievements,difficulty:State.difficulty,stats:State.stats,unlockedSkills:State.unlockedSkills,unlockedChars:State.unlockedChars})); } catch(e){}
+  };
+  if(window.requestIdleCallback) requestIdleCallback(body, { timeout:1500 });
+  else setTimeout(body, 50);
 }
 function loadGameData() {
   try { const d=JSON.parse(localStorage.getItem('rafaPaoliV2')||'null'); if(!d) return; State.coins=d.coins||0; State.unlockedSkins=d.unlockedSkins||['default']; State.equippedSkin=d.equippedSkin||'default'; State.achievements=d.achievements||[]; State.difficulty=d.difficulty||'normal'; if(d.stats) Object.assign(State.stats,d.stats); if(d.unlockedSkills) State.unlockedSkills=d.unlockedSkills; if(d.unlockedChars) State.unlockedChars=d.unlockedChars; } catch(e){}
@@ -4697,16 +4740,22 @@ function setHUDVisible(v) {
 function updateScoreDisplay() {
   const p=State.players[0];
   if(!p) return;
-  document.getElementById('hudScore').textContent=State.scores[0].toLocaleString();
+  // Phase 2.4: cache HUD writes, only touch DOM when values actually change
+  const cache = updateScoreDisplay._c = updateScoreDisplay._c || {};
+  const score = State.scores[0];
+  if(cache.score !== score) { document.getElementById('hudScore').textContent=score.toLocaleString(); cache.score=score; }
   const lvlLabel=State.infiniteMode?'WAVE':State.survivorMode?'LVL':'PHASE';
   const lvlVal=State.infiniteMode?State.wave:State.survivorMode?State.level:State.gameLevel;
-  document.getElementById('hudLevelLabel').textContent=lvlLabel;
-  document.getElementById('hudLevel').textContent=lvlVal;
-  // Lives bar with hearts
-  const lb=document.getElementById('livesBar'); lb.innerHTML='';
-  for(let i=0;i<5;i++) {
-    const span=document.createElement('span'); span.className='life-icon'+(i>=p.lives?' lost':'');
-    span.textContent='♥'; lb.appendChild(span);
+  if(cache.lvlLabel !== lvlLabel) { document.getElementById('hudLevelLabel').textContent=lvlLabel; cache.lvlLabel=lvlLabel; }
+  if(cache.lvlVal !== lvlVal)     { document.getElementById('hudLevel').textContent=lvlVal; cache.lvlVal=lvlVal; }
+  // Lives bar with hearts — rebuild only when lives count changes
+  if(cache.lives !== p.lives) {
+    cache.lives = p.lives;
+    const lb=document.getElementById('livesBar'); lb.innerHTML='';
+    for(let i=0;i<5;i++) {
+      const span=document.createElement('span'); span.className='life-icon'+(i>=p.lives?' lost':'');
+      span.textContent='♥'; lb.appendChild(span);
+    }
   }
   // Ability status
   const hasCooldown=p.character==='marcelo'||p.character==='felipe';
@@ -4718,14 +4767,19 @@ function updateScoreDisplay() {
     el.textContent=ready?'READY':'RECHARGING';
     el.style.color=ready?'#39ff14':'#ff006e';
   }
-  // P2
+  // P2 — same caching
   if(State.twoPlayer&&State.players[1]) {
     const p2=State.players[1];
-    document.getElementById('hud2Score').textContent=State.scores[1].toLocaleString();
-    const lb2=document.getElementById('livesBar2'); lb2.innerHTML='';
-    for(let i=0;i<5;i++) {
-      const span=document.createElement('span'); span.className='life-icon'+(i>=p2.lives?' lost':'');
-      span.textContent='♥'; span.style.color='#ff0'; lb2.appendChild(span);
+    const cache2 = updateScoreDisplay._c2 = updateScoreDisplay._c2 || {};
+    const s2 = State.scores[1];
+    if(cache2.score !== s2) { document.getElementById('hud2Score').textContent=s2.toLocaleString(); cache2.score=s2; }
+    if(cache2.lives !== p2.lives) {
+      cache2.lives = p2.lives;
+      const lb2=document.getElementById('livesBar2'); lb2.innerHTML='';
+      for(let i=0;i<5;i++) {
+        const span=document.createElement('span'); span.className='life-icon'+(i>=p2.lives?' lost':'');
+        span.textContent='♥'; span.style.color='#ff0'; lb2.appendChild(span);
+      }
     }
   }
 }
@@ -5710,6 +5764,8 @@ function processExplosions() {
 }
 
 function processFloatingTexts() {
+  // Phase 2.2: cap floating texts (Phase 1 added hit-numbers, can spike fast)
+  if(State.floatingTexts.length > 36) State.floatingTexts.splice(0, State.floatingTexts.length-36);
   for(let i=State.floatingTexts.length-1;i>=0;i--) {
     State.floatingTexts[i].update(); State.floatingTexts[i].draw();
     if(!State.floatingTexts[i].alive) State.floatingTexts.splice(i,1);
@@ -9044,6 +9100,13 @@ window.addEventListener('resize',resizeCanvas);
 
 // IMPROVEMENT 20: animated background loop (runs always)
 function bgLoop() { drawBackground(); requestAnimationFrame(bgLoop); }
+
+// Phase 2.5: register service worker for offline PWA support
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* http:// or file:// — silent */ });
+  });
+}
 
 window.addEventListener('load',()=>{
   resizeCanvas();
@@ -13790,6 +13853,40 @@ const PERF_MONITOR = {
     return el;
   }
 };
+
+// Phase 2.3: ?debug=1 auto-shows the perf monitor
+try {
+  if(new URLSearchParams(location.search).get('debug')==='1') {
+    window.addEventListener('load', ()=> setTimeout(()=>PERF_MONITOR.toggle(), 300));
+  }
+} catch(e){}
+
+// Phase 2.3: adaptive quality — degrade gracefully under sustained low FPS
+let _PERF_lowAccum = 0, _PERF_veryLowAccum = 0;
+setInterval(() => {
+  const f = PERF_MONITOR.fps;
+  if(f && f < 45) _PERF_lowAccum++; else _PERF_lowAccum = 0;
+  if(f && f < 30) _PERF_veryLowAccum++; else _PERF_veryLowAccum = 0;
+  if(_PERF_lowAccum >= 2 && !State._qLow){
+    State._qLow = true;
+    fxHighQuality = false;
+    if(typeof PARTICLE_POOL!=='undefined') PARTICLE_POOL.maxSize = 200;
+    console.log('[adaptive] FPS<45 sustained → particles -50%');
+  }
+  if(_PERF_veryLowAccum >= 2 && !State._qVeryLow){
+    State._qVeryLow = true;
+    SETTINGS_EXTENDED.screenShakeEnabled = false;
+    State._bgParallaxOff = true;
+    console.log('[adaptive] FPS<30 sustained → shake off, bg parallax off');
+  }
+}, 1000);
+
+// Phase 2.3: auto-pause when tab loses focus
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden && State.running && !State.paused) {
+    try { pauseGame(); } catch(e){}
+  }
+});
 
 // Press F3 to toggle perf monitor
 document.addEventListener('keydown', e => {
