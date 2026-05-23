@@ -1260,6 +1260,10 @@
   }
   #warpFlash { position:fixed; top:0; left:0; width:100%; height:100%;
     background:#fff; z-index:5001; display:none; pointer-events:none; }
+  /* Phase 1.5: low-HP danger vignette */
+  #lowHpVig { position:fixed; inset:0; pointer-events:none; z-index:60; opacity:0;
+    transition:opacity 0.25s linear;
+    box-shadow:inset 0 0 140px 50px rgba(255,0,40,0.65); }
 
   /* Navigation / Galaxy Map improvements */
   #navPanel {
@@ -1642,6 +1646,7 @@
 
 <!-- Damage Vignette -->
 <div id="vignette"></div>
+<div id="lowHpVig"></div>
 
 <!-- Upgrade Screen -->
 <div id="upgradeScreen">
@@ -2285,7 +2290,7 @@ const State = {
   screenShake:0, trauma:0,
   // Phase 1.1: timing engine
   dt:1, timeScale:1, hitstopUntil:0, scheduledEvents:[],
-  slowmoUntil:0, slowmoScale:1,
+  slowmoUntil:0, slowmoScale:1, _hitThisWave:false,
   // New V3 state
   unlockedSkills:{},
   doubleDamage:false, doubleDamageEnd:0,
@@ -2685,23 +2690,23 @@ function triggerExplosion(x,y,color='#ff6600',count=25) {
   addTrauma(0.15);
 }
 
-// ─ Floating text
+// ─ Floating text (Phase 1.6: size-aware + ease-out)
 class FloatingText {
   constructor(x,y,text,color='#ffd60a') {
     this.x=x; this.y=y; this.text=text; this.color=color;
-    this.alpha=1; this.vy=-1.5;
+    this.alpha=1; this.vy=-1.8; this.size=16; this.life=1;
   }
-  update() { this.y+=this.vy; this.alpha-=0.025; }
+  update() { this.y+=this.vy; this.vy*=0.94; this.life-=0.022; this.alpha=Math.min(1,this.life*this.life*1.7); }
   draw() {
     CTX.globalAlpha = this.alpha;
     CTX.fillStyle = this.color;
-    CTX.font = 'bold 16px Orbitron, monospace';
+    CTX.font = 'bold '+this.size+'px Orbitron, monospace';
     CTX.textAlign = 'center';
     CTX.shadowColor = this.color; CTX.shadowBlur = 8;
     CTX.fillText(this.text, this.x, this.y);
     CTX.shadowBlur = 0; CTX.globalAlpha = 1;
   }
-  get alive() { return this.alpha > 0; }
+  get alive() { return this.life > 0; }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2876,6 +2881,9 @@ class Player {
     const now=Date.now();
     if(now-this.lastShootTime<=this.shootCooldown) return;
     this.lastShootTime=now;
+    // Phase 1.5: muzzle flash + recoil (visual only)
+    this._muzzle = performance.now();
+    this._recoil = 2;
     const cx=this.x+this.width/2;
     // PvP: P2 shoots downward; bullets origin from bottom of ship
     const pvpFlip = State.pvpMode && this.index===1;
@@ -2960,6 +2968,18 @@ class Player {
 
   draw() {
     this.drawTrail();
+    // Phase 1.5: visible i-frame aura
+    if(this.invincible){
+      CTX.save();
+      const _a = 0.35 + 0.25*Math.sin(Date.now()/60);
+      CTX.strokeStyle = 'rgba(0,245,255,'+_a.toFixed(2)+')';
+      CTX.lineWidth = 2;
+      CTX.shadowColor = '#00f5ff'; CTX.shadowBlur = 12;
+      CTX.beginPath();
+      CTX.arc(this.x+this.width/2, this.y+this.height/2, this.width*0.72, 0, Math.PI*2);
+      CTX.stroke();
+      CTX.restore();
+    }
     // IMPROVEMENT 6: flash when invincible
     if(this.invincible && Math.floor(Date.now()/100)%2===0) return;
 
@@ -3291,6 +3311,16 @@ class DiverEnemy extends Enemy {
   }
   draw() {
     const cx=this.x+this.width/2, cy=this.y+this.height/2;
+    // Phase 1.3: dive trajectory telegraph (dashed line to target before diving)
+    if(!this.isDiving && this.y > CANVAS.height/3 - 90 && this.target){
+      const _tx = this.target.x + this.target.width/2;
+      const _ty = this.target.y + this.target.height/2;
+      CTX.save();
+      CTX.strokeStyle='rgba(255,40,40,'+(0.4+0.4*Math.sin(Date.now()/90)).toFixed(2)+')';
+      CTX.lineWidth=2; CTX.setLineDash([10,8]);
+      CTX.beginPath(); CTX.moveTo(cx,cy); CTX.lineTo(_tx,_ty); CTX.stroke();
+      CTX.setLineDash([]); CTX.restore();
+    }
     const angle=this.isDiving&&this.target?Math.atan2((this.target.y-cy),(this.target.x-cx)):Math.PI/2;
     CTX.save(); CTX.translate(cx,cy); CTX.rotate(angle-Math.PI/2);
     CTX.fillStyle='#0000cc'; CTX.shadowColor='#4444ff'; CTX.shadowBlur=10;
@@ -3312,6 +3342,19 @@ class BomberEnemy extends Enemy {
   update() { this.y+=this.speed; }
   draw() {
     const cx=this.x+this.width/2, cy=this.y+this.height/2;
+    // Phase 1.3: blast-radius telegraph when near a player
+    const _tp = nearestPlayer(cx,cy);
+    if(_tp){
+      const _d = Math.hypot((_tp.x+_tp.width/2)-cx,(_tp.y+_tp.height/2)-cy);
+      if(_d < 210){
+        const _p = 0.5 + 0.5*Math.sin(Date.now()/90);
+        CTX.save();
+        CTX.strokeStyle='rgba(255,50,30,'+(0.25+0.45*_p).toFixed(2)+')';
+        CTX.lineWidth=2;
+        CTX.beginPath(); CTX.arc(cx,cy,80,0,Math.PI*2); CTX.stroke();
+        CTX.restore();
+      }
+    }
     CTX.fillStyle='#ff6600'; CTX.shadowColor='#ff4400'; CTX.shadowBlur=15;
     CTX.beginPath(); CTX.arc(cx,cy,18,0,Math.PI*2); CTX.fill();
     // Bomb fuse
@@ -3561,6 +3604,21 @@ class Boss {
       this.y=clamp(this.y,0,CANVAS.height/2-this.height);
     }
     if(Date.now()-this.lastShot>this.shootInterval) { this.shoot(); this.lastShot=Date.now(); }
+    // Phase 1.3: boss attack telegraph 800ms before next shot
+    const _tt = this.shootInterval - (Date.now() - this.lastShot);
+    if(_tt > 0 && _tt < 800){
+      const _cx = this.x + this.width/2;
+      const _by = this.y + this.height;
+      const _k = 1 - _tt/800;
+      CTX.save();
+      CTX.strokeStyle='rgba(255,40,40,'+(0.2+0.5*_k).toFixed(2)+')';
+      CTX.fillStyle  ='rgba(255,40,40,'+(0.05+0.12*_k).toFixed(2)+')';
+      CTX.lineWidth=2; CTX.setLineDash([8,6]);
+      CTX.beginPath();
+      CTX.rect(_cx - 30 - 90*_k, _by, 60 + 180*_k, Math.max(40, CANVAS.height - _by));
+      CTX.fill(); CTX.stroke();
+      CTX.setLineDash([]); CTX.restore();
+    }
     this.bullets=this.bullets.filter(b=>b.y<=CANVAS.height+State.camera.y);
     this.bullets.forEach(b=>{b.update();b.draw();});
     // Update health bar
@@ -4998,6 +5056,131 @@ function flashScreen(ms) {
   }, ms || 100);
 }
 
+// ─── Phase 1.3-1.8: game-feel helpers ───
+const FEEL = { spawnWarnings:[], mkCount:0, mkLast:0 };
+
+function nearestPlayer(x,y) {
+  let best=null,bd=1e9;
+  for(const p of State.players){ if(!p||p.lives<=0) continue;
+    const d=Math.hypot((p.x+p.width/2)-x,(p.y+p.height/2)-y);
+    if(d<bd){ bd=d; best=p; }
+  }
+  return best;
+}
+function comboMultiplier(combo){
+  if(combo<2) return 1;
+  return 1 + 4*(1 - Math.exp(-(combo-1)/11));   // -> 5x asymptote
+}
+function haptic(pattern){
+  if(SETTINGS_EXTENDED.hapticsEnabled === false) return;
+  if(navigator.vibrate) { try{ navigator.vibrate(pattern); }catch(e){} }
+}
+// 1.3 spawn warnings
+function addSpawnWarning(x, at){ FEEL.spawnWarnings.push({x, at}); }
+function drawSpawnWarnings(){
+  const now=performance.now();
+  FEEL.spawnWarnings = FEEL.spawnWarnings.filter(w=>w.at>now);
+  for(const w of FEEL.spawnWarnings){
+    if(w.at-now > 600) continue;
+    if(Math.sin(now/70) <= 0) continue;             // blink
+    CTX.fillStyle='rgba(255,40,40,0.92)';
+    CTX.strokeStyle='rgba(255,210,210,0.95)'; CTX.lineWidth=1.5;
+    CTX.beginPath();
+    CTX.moveTo(w.x,20); CTX.lineTo(w.x-9,3); CTX.lineTo(w.x+9,3); CTX.closePath();
+    CTX.fill(); CTX.stroke();
+  }
+}
+// 1.4 enemy hit flash overlay
+function drawHitFlash(e){
+  if(!e || !e._hitFlash || e._hitFlash<=0) return;
+  e._hitFlash--;
+  CTX.save();
+  CTX.globalCompositeOperation='lighter';
+  CTX.globalAlpha=0.55;
+  CTX.fillStyle='#ffffff';
+  CTX.fillRect(e.x-2, e.y-2, e.width+4, e.height+4);
+  CTX.restore();
+}
+// 1.4 central enemy-damage application (crit + flash + knockback + number)
+function hitEnemy(e, dmg){
+  const crit = Math.random() < 0.08;
+  const real = dmg * (crit?2:1);
+  e.health -= real;
+  e._hitFlash = 2;
+  e.y -= 3;                                          // knockback along bullet axis
+  const ft = new FloatingText(e.x+e.width/2, e.y, (crit?'CRIT ':'') + (Math.round(real*10)/10), crit?'#ffe000':'#ffffff');
+  ft.size = crit ? 20 : 13;
+  State.floatingTexts.push(ft);
+  if(crit){
+    playSound('crit');
+    State.explosions.push(new Explosion(e.x+e.width/2, e.y+e.height/2, '#ffe000', 8));
+  }
+  return crit;
+}
+// 1.4 near-miss detection (enemy bullet barely misses player)
+function checkNearMiss(b, p){
+  if(!b || !p || b._nm) return;
+  const bw=b.width||4, bh=b.height||4;
+  const bx=b.x+bw/2, by=b.y+bh/2;
+  const px=p.x+p.width/2, py=p.y+p.height/2;
+  const d=Math.hypot(bx-px, by-py);
+  if(d < p.width/2 + 14 && d > p.width/2 + 1){
+    b._nm = true;
+    State.scores[p.index] = (State.scores[p.index]||0) + 50;
+    const ft = new FloatingText(px, py-22, 'CLOSE! +50', '#ffffff');
+    ft.size=12; State.floatingTexts.push(ft);
+    p._nearFlash = performance.now();
+  }
+}
+// 1.5 player FX wrapper: recoil + muzzle flash + near-miss flash + i-frame aura
+function drawPlayer(p){
+  const r = p._recoil || 0;
+  if(r>0){ CTX.save(); CTX.translate(0, r); }
+  p.draw();
+  if(r>0){ CTX.restore(); p._recoil = Math.max(0, r-0.5); }
+  // muzzle flash
+  if(p._muzzle && performance.now()-p._muzzle < 80){
+    const cx = p.x + p.width/2;
+    const pvpFlip = State.pvpMode && p.index===1;
+    const my = pvpFlip ? p.y + p.height : p.y;
+    const a = 1 - (performance.now()-p._muzzle)/80;
+    CTX.save(); CTX.globalCompositeOperation='lighter';
+    CTX.globalAlpha = a;
+    CTX.fillStyle = '#fff7c0';
+    CTX.shadowColor = '#ffea00'; CTX.shadowBlur = 14;
+    CTX.beginPath(); CTX.arc(cx, my, 8*a + 4, 0, Math.PI*2); CTX.fill();
+    CTX.restore();
+  }
+  // near-miss white flash
+  if(p._nearFlash && performance.now()-p._nearFlash < 120){
+    CTX.save(); CTX.globalCompositeOperation='lighter';
+    CTX.globalAlpha = 0.5 * (1 - (performance.now()-p._nearFlash)/120);
+    CTX.fillStyle = '#ffffff';
+    CTX.fillRect(p.x-3, p.y-3, p.width+6, p.height+6);
+    CTX.restore();
+  }
+}
+// 1.6 multi-kill announce
+function announceMultiKill(text, color){
+  showWaveAnnounce(text, color);
+}
+// 1.5 death sequence (slowmo + fragment burst then game over)
+function startDeathSequence(){
+  if(State._dying) return;
+  State._dying = true;
+  triggerSlowmo(0.3, 1300);
+  triggerHitstop(140);
+  addTrauma(0.85);
+  const p = State.players.find(p=>p);
+  if(p){
+    for(let i=0;i<4;i++) scheduleEvent(i*110, () => triggerExplosion(
+      p.x + p.width/2 + rand(-22,22),
+      p.y + p.height/2 + rand(-22,22),
+      i===0?'#ffffff':'#ff8800', 28));
+  }
+  setTimeout(() => { State._dying = false; gameOver(); }, 1500);
+}
+
 function spawnEnemy() {
   const now=Date.now();
   let interval;
@@ -5012,9 +5195,12 @@ function spawnEnemy() {
   if(State.survivorMode) count=Math.min(Math.floor(State.survivorElapsed/30)+1,5);
   const surMult=State.survivorMode?(DIFFICULTY_CFG[State.survivorDifficulty]?.multiplier??1):1;
   for(let i=0;i<count;i++) {
-    scheduleEvent(i*200,()=>{
+    const spawnX = Math.random()*(CANVAS.width-50);
+    addSpawnWarning(spawnX+25, performance.now()+i*200+500);
+    scheduleEvent(i*200+500,()=>{
       const type=pool[Math.floor(Math.random()*pool.length)];
       const enemy=createEnemy(type);
+      enemy.x = Math.min(spawnX, CANVAS.width-enemy.width);
       if(State.infiniteMode&&type==='tank') enemy.health=Math.min(3+Math.floor(State.wave/5),10);
       if(State.infiniteMode&&type==='fast') enemy.speed=5+Math.random()+State.wave*0.1;
       if(State.survivorMode) {
@@ -5048,10 +5234,11 @@ function handleEnemyDeath(enemy,eIdx,killerPlayer) {
     });
   }
   // Phase 1.1: brief freeze frame when a heavy enemy dies
-  if(enemy.type==='tank'||enemy.type==='bomber') triggerHitstop(55);
+  if(enemy.type==='tank'||enemy.type==='bomber') { triggerHitstop(55); haptic([30,20,30]); }
 
   const now=Date.now();
-  if(now-State.stats.lastKillTime<5000) State.stats.currentCombo++;
+  // Phase 1.6: combo timeout 5s -> 2.5s (more aggressive)
+  if(now-State.stats.lastKillTime<2500) State.stats.currentCombo++;
   else State.stats.currentCombo=1;
   State.stats.lastKillTime=now;
   State.stats.maxCombo=Math.max(State.stats.maxCombo,State.stats.currentCombo);
@@ -5067,9 +5254,18 @@ function handleEnemyDeath(enemy,eIdx,killerPlayer) {
   // IMPROVEMENT 14: combo display
   updateComboDisplay();
 
+  // Phase 1.6: multi-kill tracking (Unreal-style chain)
+  if(now - FEEL.mkLast < 1000) FEEL.mkCount++; else FEEL.mkCount = 1;
+  FEEL.mkLast = now;
+  if(FEEL.mkCount === 3)      announceMultiKill('TRIPLE KILL', '#ffd60a');
+  else if(FEEL.mkCount === 5) announceMultiKill('MEGA KILL',   '#ff8c00');
+  else if(FEEL.mkCount === 7) announceMultiKill('ULTRA KILL',  '#ff006e');
+  else if(FEEL.mkCount >= 9 && FEEL.mkCount % 2 === 1) announceMultiKill('GODLIKE', '#ff006e');
+
   const pIdx=killerPlayer?State.players.indexOf(killerPlayer):0;
   const score=ENEMY_SCORE[enemy.type]||10;
-  const finalScore=score*(1+Math.min(State.stats.currentCombo-1,9)*0.1);
+  // Phase 1.6: exponential combo multiplier (asymptote 5x)
+  const finalScore=score*comboMultiplier(State.stats.currentCombo);
   const safeIdx=pIdx>=0?pIdx:0;
   State.scores[safeIdx]+=Math.floor(finalScore);
   addCoins(ENEMY_COINS[enemy.type]||5);
@@ -5089,6 +5285,15 @@ function handleEnemyDeath(enemy,eIdx,killerPlayer) {
   State.enemies.splice(eIdx,1);
 
   if(State.infiniteMode&&State.enemies.length===0&&!State.boss) {
+    // Phase 1.6: Perfect Wave bonus (no damage taken this wave)
+    if(!State._hitThisWave && State.wave>=1){
+      State.scores[0] += 500;
+      const _pwft = new FloatingText(CANVAS.width/2, CANVAS.height/2, 'PERFECT WAVE +500', '#39ff14');
+      _pwft.size = 28; _pwft.vy = -0.7;
+      State.floatingTexts.push(_pwft);
+      playSound('levelup');
+    }
+    State._hitThisWave = false;
     State.wave++;
     State.stats.maxInfiniteWave=Math.max(State.stats.maxInfiniteWave,State.wave);
     checkAchievements();
@@ -5097,14 +5302,17 @@ function handleEnemyDeath(enemy,eIdx,killerPlayer) {
   }
 }
 
-// IMPROVEMENT 14: combo display
+// Phase 1.6: combo display scales with multiplier, color escalates with combo
 function updateComboDisplay() {
   const el=document.getElementById('comboDisplay');
   const num=document.getElementById('comboNum');
-  if(State.stats.currentCombo>=3) {
+  const c = State.stats.currentCombo;
+  if(c>=3) {
     el.classList.add('active');
-    num.textContent='×'+State.stats.currentCombo;
-    num.style.fontSize=Math.min(48+State.stats.currentCombo*2,80)+'px';
+    const m = comboMultiplier(c);
+    num.textContent = '×'+c+'  '+m.toFixed(1)+'×';
+    num.style.fontSize = Math.min(38 + c*2.4, 96) + 'px';
+    num.style.color = c>=15 ? '#ff006e' : c>=8 ? '#ff8c00' : '#ffd60a';
   } else {
     el.classList.remove('active');
   }
@@ -5141,6 +5349,8 @@ function handlePlayerDamage(player) {
     return;
   }
   State.stats.phaseDamageTaken++;
+  State._hitThisWave = true;                       // Phase 1.6 perfect-wave tracking
+  haptic(100);                                     // Phase 1.8
   player.lives--;
   // ─── EXPANSION: open world damage hook ───
   if(State.openWorldMode) onOpenWorldPlayerDamaged();
@@ -5161,7 +5371,8 @@ function handlePlayerDamage(player) {
     }
     return;
   }
-  if(State.players.every(p=>p.lives<=0)) gameOver();
+  // Phase 1.5: death sequence on final death (slowmo + fragment burst)
+  if(State.players.every(p=>p.lives<=0)) startDeathSequence();
 }
 
 function handleBossDefeat() {
@@ -5169,6 +5380,7 @@ function handleBossDefeat() {
   triggerHitstop(200);
   flashScreen(120);
   addTrauma(1);
+  haptic([60,30,60,30,80]);                        // Phase 1.8
   // Open world boss defeat handling
   if(State.openWorldMode) {
     State.stats.bossesDefeated++;
@@ -5307,9 +5519,16 @@ function updateTimersPerFrame() {
     if(ddEl) ddEl.style.display='none';
   }
 
-  // Combo reset timer
-  if(State.stats.currentCombo>0&&now-State.stats.lastKillTime>5000) {
+  // Combo reset timer (Phase 1.6: 5s -> 2.5s)
+  if(State.stats.currentCombo>0&&now-State.stats.lastKillTime>2500) {
     State.stats.currentCombo=0; updateComboDisplay();
+  }
+  // Phase 1.5: low-HP danger vignette
+  const _lh = document.getElementById('lowHpVig');
+  if(_lh){
+    const _lowHp = State.players.some(p => p && p.lives>0 && p.lives<=1);
+    if(_lowHp) _lh.style.opacity = (0.32 + 0.32*Math.sin(now/200)).toFixed(2);
+    else if(_lh.style.opacity !== '0') _lh.style.opacity = '0';
   }
 }
 
@@ -5350,7 +5569,8 @@ function processBullets() {
         if(!detectCollision(b,State.enemies[e])) continue;
         triggerExplosion(b.x,b.y,'#ffff00',6);
         p.bullets.splice(i,1);
-        State.enemies[e].health-=b.damage*(State.doubleDamage?2:1);
+        // Phase 1.4: central hit (crit + flash + knockback + damage number)
+        hitEnemy(State.enemies[e], b.damage*(State.doubleDamage?2:1));
         if(State.enemies[e].health<=0) handleEnemyDeath(State.enemies[e],e,p);
         break;
       }
@@ -5359,7 +5579,16 @@ function processBullets() {
         triggerExplosion(b.x,b.y,'#ffff00',6);
         p.bullets.splice(i,1);
         const bossDmgMult = p._bossDmgMult || 1;
-        State.boss.health-=b.damage*bossDmgMult;
+        // Phase 1.4: boss crit + hit flash + shake + haptic
+        const _crit = Math.random() < 0.08;
+        const _dmg = b.damage * bossDmgMult * (_crit?2:1);
+        State.boss.health -= _dmg;
+        State.boss._hitFlash = 2;
+        addTrauma(0.4);
+        haptic([30,20,30]);
+        const _bft = new FloatingText(b.x, b.y, (_crit?'CRIT ':'') + Math.round(_dmg), _crit?'#ffe000':'#ff5050');
+        _bft.size = _crit?22:15; State.floatingTexts.push(_bft);
+        if(_crit) playSound('crit');
         if(State.boss.health<=0){handleBossDefeat();return;}
       }
     }
@@ -5376,7 +5605,7 @@ function processAllyRobots() {
           if(!detectCollision(robot.bullets[bi],State.enemies[ei])) continue;
           triggerExplosion(robot.bullets[bi].x,robot.bullets[bi].y,p.robotColor,8);
           robot.bullets.splice(bi,1);
-          State.enemies[ei].health-=1;
+          hitEnemy(State.enemies[ei], 1);
           if(State.enemies[ei].health<=0) handleEnemyDeath(State.enemies[ei],ei,p);
           break;
         }
@@ -5396,6 +5625,7 @@ function processLasers() {
       if(e.x+e.width>=cx-5&&e.x<=cx+5) {
         triggerExplosion(e.x+e.width/2,e.y+e.height/2,p.laserColor,20);
         e.health-=(e.type==='tank'?3:e.health);
+        e._hitFlash = 1;
         if(e.health<=0) handleEnemyDeath(e,i,p);
       }
     }
@@ -5408,7 +5638,7 @@ function processLasers() {
 function processEnemies() {
   if(State.pvpMode) return;
   for(let i=State.enemies.length-1;i>=0;i--) {
-    const e=State.enemies[i]; e.update(); e.draw();
+    const e=State.enemies[i]; e.update(); e.draw(); drawHitFlash(e);
     for(const p of State.players) {
       if(p.lives<=0||p.invincible) continue; // IMPROVEMENT 6
       if(!detectCollision(e,p)) continue;
@@ -5423,7 +5653,7 @@ function processEnemies() {
     for(let bi=e.bullets.length-1;bi>=0;bi--) {
       for(const p of State.players) {
         if(p.lives<=0||p.invincible) continue;
-        if(!detectCollision(e.bullets[bi],p)) continue;
+        if(!detectCollision(e.bullets[bi],p)) { checkNearMiss(e.bullets[bi], p); continue; }
         e.bullets.splice(bi,1);
         if(p.hasShield()) triggerExplosion(p.x+p.width/2,p.y,'#00f5ff',10);
         else handlePlayerDamage(p);
@@ -5435,12 +5665,12 @@ function processEnemies() {
 
 function processBoss() {
   if(State.pvpMode||!State.boss) return;
-  State.boss.update(); State.boss.draw();
+  State.boss.update(); State.boss.draw(); drawHitFlash(State.boss);
   for(let bi=State.boss.bullets.length-1;bi>=0;bi--) {
     const bullet=State.boss.bullets[bi];
     for(const p of State.players) {
       if(p.lives<=0||p.invincible) continue;
-      if(!detectCollision(bullet,p)) continue;
+      if(!detectCollision(bullet,p)) { checkNearMiss(bullet, p); continue; }
       State.boss.bullets.splice(bi,1);
       if(p.hasShield()) triggerExplosion(bullet.x,bullet.y,p.shieldColor,10);
       else handlePlayerDamage(p);
@@ -5958,7 +6188,7 @@ function processOpenWorldEnemies() {
     for(let bi=e.bullets.length-1;bi>=0;bi--) {
       for(const p of State.players) {
         if(p.lives<=0||p.invincible) continue;
-        if(!detectCollision(e.bullets[bi],p)) continue;
+        if(!detectCollision(e.bullets[bi],p)) { checkNearMiss(e.bullets[bi], p); continue; }
         e.bullets.splice(bi,1);
         if(p.hasShield()) triggerExplosion(p.x+p.width/2,p.y,'#00f5ff',10);
         else handlePlayerDamage(p);
@@ -7561,7 +7791,7 @@ function gameTick() {
     drawGalaxyObjects();
     // ─── New expanded galaxy objects ───
     drawNewGalaxyObjects();
-    State.players.forEach(p=>{p.update();p.draw();});
+    State.players.forEach(p=>{p.update();drawPlayer(p);});
     processLasers();
     processBullets();
     processAllyRobots();
@@ -7598,7 +7828,7 @@ function gameTick() {
     drawExtendedMiniMap();
     drawOpenWorldFullFrame();
   } else {
-    State.players.forEach(p=>{p.update();p.draw();});
+    State.players.forEach(p=>{p.update();drawPlayer(p);});
     processLasers();
     processBullets();
     processAllyRobots();
@@ -7619,6 +7849,8 @@ function gameTick() {
     // Mini radar for Infinite/Boss Rush
     if(State.infiniteMode||State.bossRushMode) drawMiniRadar();
     else { const rc=document.getElementById('miniRadar'); if(rc) rc.classList.remove('visible'); }
+    // Phase 1.3: spawn warning triangles
+    drawSpawnWarnings();
   }
 
   updateScoreDisplay();
@@ -13426,6 +13658,18 @@ const SOUND_SYSTEM = {
       const gain = ctx.createGain();
       osc.connect(gain); gain.connect(this.masterGain);
       const now = ctx.currentTime;
+      // Phase 1.7: ±5% pitch variance so repeated SFX don't fatigue the ear
+      try { osc.detune.value = (Math.random()*2-1) * 85; } catch(e){}
+      // Phase 1.7: sidechain ducking on big sounds (music/ambient bows out briefly)
+      if(type==='explosion' || type==='explosionSound' || type==='boss_roar'){
+        try {
+          const mg = this.masterGain.gain;
+          mg.cancelScheduledValues(now);
+          mg.setValueAtTime(this.masterVolume, now);
+          mg.linearRampToValueAtTime(this.masterVolume*0.65, now+0.03);
+          mg.linearRampToValueAtTime(this.masterVolume,      now+0.25);
+        } catch(e){}
+      }
       
       const sounds = {
         shot:      () => { osc.type='square'; osc.frequency.setValueAtTime(800,now); osc.frequency.exponentialRampToValueAtTime(200,now+0.1); gain.gain.setValueAtTime(0.2,now); gain.gain.exponentialRampToValueAtTime(0.001,now+0.1); },
@@ -14699,6 +14943,7 @@ const SETTINGS_EXTENDED = {
   colorblindMode: false,
   screenShakeEnabled: true,
   flashEffectsEnabled: true,
+  hapticsEnabled: true,
   autoFireEnabled: false,
   invertY: false,
   mouseSensitivity: 1.0,
