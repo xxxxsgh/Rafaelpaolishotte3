@@ -1,0 +1,19 @@
+{
+  "env": { "browser": true, "es2022": true },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "script" },
+  "rules": {
+    "no-unused-vars": "off",
+    "no-undef": "off",
+    "no-var": "warn",
+    "prefer-const": "warn",
+    "eqeqeq": ["warn", "smart"]
+  },
+  "globals": {
+    "Peer": "readonly",
+    "CANVAS": "readonly",
+    "CTX": "readonly",
+    "BGCANVAS": "readonly",
+    "BGCTX": "readonly",
+    "State": "writable"
+  }
+}

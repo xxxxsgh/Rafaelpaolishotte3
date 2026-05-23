@@ -1264,6 +1264,11 @@
   #lowHpVig { position:fixed; inset:0; pointer-events:none; z-index:60; opacity:0;
     transition:opacity 0.25s linear;
     box-shadow:inset 0 0 140px 50px rgba(255,0,40,0.65); }
+  /* Phase 4.4: run-stats rows + accessibility skins */
+  #runStatsPanel .rs-row { display:flex; justify-content:space-between; }
+  body.high-contrast { filter: contrast(1.25) saturate(1.15); }
+  body.colorblind .enemy-tag { outline:2px solid #ffd60a; }    /* hint outlines */
+  body.colorblind #vignette { background: rgba(255,255,0,0.10); }
 
   /* Navigation / Galaxy Map improvements */
   #navPanel {
@@ -1517,7 +1522,7 @@
   <button onclick="resumeGame()" style="border-color:var(--neon-green); color:var(--neon-green);">RESUME</button>
   <button onclick="showCrafting()" style="border-color:#b57bff;color:#b57bff;" id="pauseCraftBtn">⚗️ CRAFTING</button>
   <button onclick="restartGame()">RESTART</button>
-  <button onclick="backToMenu()" class="btn-danger">MAIN MENU</button>
+  <button onclick="confirmBackToMenu()" class="btn-danger">MAIN MENU</button>
 </div>
 
 <!-- Game Over -->
@@ -1527,7 +1532,8 @@
   <div id="newHsBadge" class="hs-badge" style="display:none;">★ NEW HIGH SCORE! ★</div>
   <p id="finalScoreP2" style="display:none; font-family:'Orbitron',monospace; font-size:13px; color:rgba(255,200,0,0.7); margin-top:4px;"></p>
   <p id="survivorTimeEl" style="display:none; font-family:'Orbitron',monospace; font-size:13px; color:var(--cyan); margin-top:4px;"></p>
-  <button onclick="restartGame()" style="margin-top:16px;">RETRY</button>
+  <div id="runStatsPanel" style="margin:14px 0;font-family:'Orbitron',monospace;font-size:11px;line-height:1.7;text-align:left;border-top:1px solid rgba(0,245,255,0.2);border-bottom:1px solid rgba(0,245,255,0.2);padding:8px 4px;color:rgba(255,255,255,0.85);"></div>
+  <button onclick="restartGame()" style="margin-top:8px;">RETRY</button>
   <button onclick="backToMenu()" class="btn-danger">MAIN MENU</button>
 </div>
 
@@ -2919,6 +2925,8 @@ class Player {
     // Phase 1.5: muzzle flash + recoil (visual only)
     this._muzzle = performance.now();
     this._recoil = 2;
+    // Phase 4: run-stats tracking
+    if(State.runStats) State.runStats.shotsFired++;
     const cx=this.x+this.width/2;
     // PvP: P2 shoots downward; bullets origin from bottom of ship
     const pvpFlip = State.pvpMode && this.index===1;
@@ -4590,6 +4598,7 @@ function joinPeerGame() {
   if (!inp) return;
   const code = inp.value.trim().toUpperCase();
   if (!code || code.length < 4) { setOnlineStatus('ENTER A VALID CODE'); return; }
+  _lastJoinCode = code;                         // Phase 3.7 for reconnect
 
   if (!_peer) {
     _peer = new Peer(undefined, { host:'0.peerjs.com', port:443, path:'/', secure:true, debug:0 });
@@ -4604,18 +4613,70 @@ function joinPeerGame() {
   setupPeerConnection(_conn);
 }
 
+// Phase 3.7: online robustness — reconnect with exponential backoff + ping HUD
+let _lastJoinCode = null;
+let _reconnectAttempt = 0;
+let _pingMs = 0;
+let _lastPingSentAt = 0;
+let _pingTimer = null;
+function _showPingHud(visible){
+  let el = document.getElementById('pingHud');
+  if(!el && visible){
+    el = document.createElement('div'); el.id='pingHud';
+    el.style.cssText = 'position:fixed;left:8px;bottom:8px;font:11px Orbitron,monospace;color:#9ad;background:rgba(0,0,0,0.5);padding:3px 8px;border-radius:4px;pointer-events:none;z-index:120;';
+    document.body.appendChild(el);
+  }
+  if(el) el.style.display = visible ? 'block' : 'none';
+}
+function _startPingLoop(){
+  if(_pingTimer) clearInterval(_pingTimer);
+  _pingTimer = setInterval(() => {
+    if(_conn && _conn.open) {
+      _lastPingSentAt = performance.now();
+      try { _conn.send({ type:'ping', t:_lastPingSentAt }); } catch(e){}
+    }
+    const el = document.getElementById('pingHud');
+    if(el) el.textContent = _onlineMode ? ('PING ' + Math.round(_pingMs) + 'ms') : '';
+  }, CONFIG.ONLINE.pingIntervalMs);
+}
+function _stopPingLoop(){ if(_pingTimer){ clearInterval(_pingTimer); _pingTimer=null; } _showPingHud(false); }
+function _tryReconnect(){
+  if(_isHost || !_lastJoinCode) return;
+  const backoffs = CONFIG.ONLINE.reconnectBackoffMs;
+  if(_reconnectAttempt >= backoffs.length){
+    setOnlineStatus('UNABLE TO RECONNECT'); _reconnectAttempt = 0; return;
+  }
+  const delay = backoffs[_reconnectAttempt++];
+  setOnlineStatus('RECONNECTING IN '+(delay/1000)+'s... (attempt '+_reconnectAttempt+')');
+  setTimeout(() => {
+    if(_peer) { try{ _peer.destroy(); }catch(e){} _peer=null; }
+    const inp = document.getElementById('joinCodeInput');
+    if(inp){ inp.value = _lastJoinCode; joinPeerGame(); }
+  }, delay);
+}
+
 function setupPeerConnection(conn) {
   conn.on('open', () => {
     if (!_isHost) setOnlineStatus('CONNECTED! HOST IS STARTING GAME...');
+    _reconnectAttempt = 0;
+    _showPingHud(true);
+    _startPingLoop();
   });
-  conn.on('data', data => { handleNetworkData(data); });
+  conn.on('data', data => {
+    // Phase 3.7: ping/pong
+    if(data && data.type === 'ping') { try { conn.send({type:'pong', t:data.t}); } catch(e){} return; }
+    if(data && data.type === 'pong') { _pingMs = performance.now() - data.t; return; }
+    handleNetworkData(data);
+  });
   conn.on('close', () => {
     setOnlineStatus('CONNECTION LOST');
     _onlineMode = false;
+    _stopPingLoop();
     if (State.running) {
       showWaveAnnounce('PLAYER 2 DISCONNECTED', '#ff006e');
       State.twoPlayer = false;
     }
+    _tryReconnect();
   });
   conn.on('error', err => setOnlineStatus('ERROR: ' + (err.message||'')));
 }
@@ -4928,6 +4989,7 @@ function showWaveAnnounce(text,color='#00f5ff') {
 // ═══════════════════════════════════════════════════════════════════
 function showBossIntro(level) {
   const data=BOSSES_DATA[level-1]; if(!data) return;
+  if(hasSeenBoss(level)) return;                 // Phase 4: skip after first win
   const el=document.getElementById('bossIntroEl');
   document.getElementById('bossIntroName').textContent=data.name;
   document.getElementById('bossIntroSub').textContent=data.subtitle;
@@ -4963,11 +5025,13 @@ function showPhaseLoading(nextLevel) {
 function startGame() {
   hideAllOverlays();
   CANVAS.style.display='block';
-  State.running=true; State.paused=false;
+  State.running=true; State.paused=false; State._dying=false;
   State.enemies=[]; State.boss=null; State.powerUps=[]; State.explosions=[]; State.xpOrbs=[]; State.scheduledEvents=[];
   State.floatingTexts=[]; State.scores=[0,0];
   State.gameLevel=1; State.wave=1; State.bossSpawned=false; State.uniqueSpawned=false;
   State.lastEnemySpawn=Date.now(); State.gameStartTime=Date.now();
+  resetRunStats();                                  // Phase 4: per-run stat tracking
+  transition(GameStates.PLAYING);                   // Phase 3: state machine
   State.powerUpActive=false; State.shieldActive=false;
   State.stats.phaseDamageTaken=0; State.stats.currentCombo=0; State.stats.lastKillTime=0;
   State.screenShake=0; State.trauma=0;
@@ -5019,12 +5083,15 @@ function startGame() {
 
 function gameOver() {
   State.running=false;
+  transition(GameStates.GAME_OVER);                // Phase 3
   document.getElementById('bossBarWrap').classList.remove('visible');
   document.getElementById('finalScore').textContent='SCORE: '+State.scores[0].toLocaleString();
   const p2el=document.getElementById('finalScoreP2');
   if(State.twoPlayer){p2el.style.display='block';p2el.textContent='P2: '+State.scores[1].toLocaleString();}else p2el.style.display='none';
   const stEl=document.getElementById('survivorTimeEl');
   if(State.survivorMode){stEl.style.display='block';stEl.textContent='TIME: '+formatTime(State.survivorElapsed);}else stEl.style.display='none';
+  // Phase 4: full run-stats breakdown
+  renderRunStatsPanel();
   const isNew = saveHighScore(getCurrentHSMode(), State.scores[0]);
   const badge = document.getElementById('newHsBadge');
   badge.style.display = isNew ? 'block' : 'none';
@@ -5033,6 +5100,28 @@ function gameOver() {
   checkDailyComplete(State.scores[0]);
   if (_onlineMode) endOnlineSession();
   setHUDVisible(false); navigateMenu('gameOver');
+}
+
+// Phase 4: populate game-over stats breakdown
+function renderRunStatsPanel(){
+  const el = document.getElementById('runStatsPanel'); if(!el) return;
+  const r = State.runStats || {};
+  const dur = Math.max(0, Math.floor((Date.now() - (r.startedAt||Date.now()))/1000));
+  const mm = Math.floor(dur/60), ss = String(dur%60).padStart(2,'0');
+  const accPct = r.shotsFired ? Math.round(100*r.shotsHit/r.shotsFired) : 0;
+  const killsTotal = Object.values(r.kills||{}).reduce((a,b)=>a+b,0);
+  const killsBreakdown = Object.entries(r.kills||{})
+    .sort((a,b)=>b[1]-a[1])
+    .map(([t,n]) => `<span style="color:#9ad">${t}</span>: ${n}`).join(' · ') || 'none';
+  el.innerHTML = `
+    <div class="rs-row"><span>TIME</span><span>${mm}:${ss}</span></div>
+    <div class="rs-row"><span>KILLS</span><span>${killsTotal}</span></div>
+    <div class="rs-row"><span>BOSSES</span><span>${r.bossesKilled||0}</span></div>
+    <div class="rs-row"><span>BEST COMBO</span><span>×${r.bestCombo||0}</span></div>
+    <div class="rs-row"><span>ACCURACY</span><span>${accPct}% (${r.shotsHit||0}/${r.shotsFired||0})</span></div>
+    <div class="rs-row"><span>DAMAGE TAKEN</span><span>${r.damageTaken||0}</span></div>
+    <div class="rs-row" style="opacity:.7;font-size:10px;margin-top:6px;"><span>BY TYPE</span><span style="text-align:right">${killsBreakdown}</span></div>
+  `;
 }
 
 function finalEnding() {
@@ -5110,6 +5199,162 @@ function flashScreen(ms) {
   }, ms || 100);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Phase 3 — Single-file architecture (centralized config, state machine,
+// input abstraction, save versioning, online robustness)
+// ═══════════════════════════════════════════════════════════════════
+const CONFIG = {
+  COMBO:   { timeoutMs: 2500, asymptoteN: 11, maxMultiplier: 5 },
+  CRIT:    { rate: 0.08, multiplier: 2 },
+  HITSTOP: { boss: 200, heavy: 55 },
+  SHAKE:   { playerHit:0.6, heavyKill:0.35, bossHit:0.4, bossDeath:1.0,
+             nuke:0.7, warp:0.5, generic:0.15, traumaDecayPerTick:0.025,
+             pxPerTrauma:16 },
+  HAPTIC:  { playerHit:100, heavyKill:[30,20,30],
+             bossHit:[30,20,30], bossDeath:[60,30,60,30,80] },
+  CAPS:    { explosions:24, floatingTexts:36, particlePoolLow:200 },
+  ADAPTIVE:{ lowFps:45, veryLowFps:30, sustainSec:2 },
+  ONLINE:  { syncRateMs:50, pingIntervalMs:2000,
+             reconnectBackoffMs:[1000,2000,4000,8000] },
+};
+
+const GameStates = Object.freeze({
+  BOOT:'boot', MENU:'menu', LOADING:'loading',
+  PLAYING:'playing', PAUSED:'paused', GAME_OVER:'over', VICTORY:'win'
+});
+State._fsm = GameStates.BOOT;
+function transition(to) {
+  if(!Object.values(GameStates).includes(to)) { console.warn('Invalid state:', to); return; }
+  State._fsm = to;
+}
+
+// Input abstraction (additive — existing handlers still drive gameplay)
+const Input = {
+  _keys:{}, _touch:{}, _gp:{},
+  _norm(k){ return (k||'').toLowerCase(); },
+  isPressed(action){
+    const k = this._keys;
+    if(action==='shoot')    return !!(k[' ']||k['arrowup']||k['w']||this._touch.fire||this._gp.shoot);
+    if(action==='ability')  return !!(k['a']||this._touch.ability||this._gp.ability);
+    if(action==='pause')    return !!(k['p']||k['escape']);
+    if(action==='left')     return !!(k['arrowleft']||k['a']||this._touch.left);
+    if(action==='right')    return !!(k['arrowright']||k['d']||this._touch.right);
+    return false;
+  },
+  getAxis(name){
+    if(name==='horizontal'){
+      let v=0;
+      if(this.isPressed('left'))  v -= 1;
+      if(this.isPressed('right')) v += 1;
+      return v;
+    }
+    return 0;
+  },
+};
+window.addEventListener('keydown', e => { Input._keys[Input._norm(e.key)] = true; });
+window.addEventListener('keyup',   e => { Input._keys[Input._norm(e.key)] = false; });
+
+// Save versioning + export/import
+const SAVE_VERSION = 3;
+function _migrateSave(d){
+  if(!d) return d;
+  d.version = d.version || 1;
+  while(d.version < SAVE_VERSION) {
+    if(d.version === 1) { d.unlockedSkills = d.unlockedSkills || {}; }
+    if(d.version === 2) { d.runStatsHistory = d.runStatsHistory || []; }
+    d.version++;
+  }
+  return d;
+}
+window.exportSave = function exportSave(){
+  try {
+    const data = JSON.parse(localStorage.getItem('rafaPaoliV2')||'{}');
+    data.version = SAVE_VERSION;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rafa-paoli-save-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  } catch(e){ alert('Export failed: '+e.message); }
+};
+window.importSave = function importSave(){
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='application/json';
+  inp.onchange = e => {
+    const f = e.target.files && e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const d = _migrateSave(JSON.parse(ev.target.result));
+        localStorage.setItem('rafaPaoliV2', JSON.stringify(d));
+        alert('Save importado. A página vai recarregar.');
+        location.reload();
+      } catch(err){ alert('Save inválido: ' + err.message); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 4 — Polish & content (run stats, daily seed, options toggles)
+// ═══════════════════════════════════════════════════════════════════
+State.runStats = { startedAt:0, kills:{}, shotsFired:0, shotsHit:0, damageTaken:0, bossesKilled:0, bestCombo:0 };
+function resetRunStats(){
+  State.runStats = { startedAt: Date.now(), kills:{}, shotsFired:0, shotsHit:0, damageTaken:0, bossesKilled:0, bestCombo:0 };
+}
+function trackKill(type){
+  State.runStats.kills[type] = (State.runStats.kills[type]||0) + 1;
+}
+
+function applyAccessibilityClasses(){
+  document.body.classList.toggle('colorblind', !!SETTINGS_EXTENDED.colorblindMode);
+  document.body.classList.toggle('high-contrast', !!SETTINGS_EXTENDED.highContrast);
+}
+SETTINGS_EXTENDED.highContrast = SETTINGS_EXTENDED.highContrast || false;
+window.toggleColorblind = function(){
+  SETTINGS_EXTENDED.colorblindMode = !SETTINGS_EXTENDED.colorblindMode;
+  applyAccessibilityClasses(); SETTINGS_EXTENDED.save();
+};
+window.toggleHighContrast = function(){
+  SETTINGS_EXTENDED.highContrast = !SETTINGS_EXTENDED.highContrast;
+  applyAccessibilityClasses(); SETTINGS_EXTENDED.save();
+};
+
+// Independent SFX / Music volume sliders
+SETTINGS_EXTENDED.sfxVolume   = (typeof SETTINGS_EXTENDED.sfxVolume   === 'number') ? SETTINGS_EXTENDED.sfxVolume   : 1.0;
+SETTINGS_EXTENDED.musicVolume = (typeof SETTINGS_EXTENDED.musicVolume === 'number') ? SETTINGS_EXTENDED.musicVolume : 1.0;
+function applySfxVolume(){
+  if(typeof SOUND_SYSTEM !== 'undefined' && SOUND_SYSTEM.setVolume){
+    SOUND_SYSTEM.setVolume(masterVolume * SETTINGS_EXTENDED.sfxVolume);
+  }
+}
+function applyMusicVolume(){
+  if(typeof SOUND_SYSTEM !== 'undefined' && SOUND_SYSTEM.ambientGain){
+    try { SOUND_SYSTEM.ambientGain.gain.value = 0.04 * SETTINGS_EXTENDED.musicVolume; } catch(e){}
+  }
+}
+
+// Skip boss intro after first kill of that boss
+function hasSeenBoss(level){
+  try { return !!JSON.parse(localStorage.getItem('rp_seenBoss')||'{}')[level]; } catch(e){ return false; }
+}
+function markBossSeen(level){
+  try {
+    const m = JSON.parse(localStorage.getItem('rp_seenBoss')||'{}');
+    m[level]=1; localStorage.setItem('rp_seenBoss', JSON.stringify(m));
+  } catch(e){}
+}
+
+// Confirmation before quitting an active run
+window.confirmBackToMenu = function(){
+  if(State.running && !State._dying){
+    if(!confirm('Voltar pro menu? O progresso da partida será perdido.')) return;
+  }
+  backToMenu();
+};
+
 // ─── Phase 1.3-1.8: game-feel helpers ───
 const FEEL = { spawnWarnings:[], mkCount:0, mkLast:0 };
 
@@ -5157,8 +5402,8 @@ function drawHitFlash(e){
 }
 // 1.4 central enemy-damage application (crit + flash + knockback + number)
 function hitEnemy(e, dmg){
-  const crit = Math.random() < 0.08;
-  const real = dmg * (crit?2:1);
+  const crit = Math.random() < CONFIG.CRIT.rate;
+  const real = dmg * (crit ? CONFIG.CRIT.multiplier : 1);
   e.health -= real;
   e._hitFlash = 2;
   e.y -= 3;                                          // knockback along bullet axis
@@ -5274,6 +5519,7 @@ const ENEMY_COINS={basic:5,ufo:8,tank:15,fast:10,unique:20,spinner:12,diver:10,b
 const ENEMY_SCORE={basic:10,ufo:15,tank:25,fast:20,unique:30,spinner:18,diver:15,bomber:22};
 
 function handleEnemyDeath(enemy,eIdx,killerPlayer) {
+  if(State.runStats) trackKill(enemy.type);          // Phase 4 run stats
   triggerExplosion(enemy.x+enemy.width/2,enemy.y+enemy.height/2);
   if(State.survivorMode||State.openWorldMode) State.xpOrbs.push(new XPOrb(enemy.x+enemy.width/2,enemy.y+enemy.height/2,10+enemy.maxHealth*5));
 
@@ -5307,6 +5553,7 @@ function handleEnemyDeath(enemy,eIdx,killerPlayer) {
 
   // IMPROVEMENT 14: combo display
   updateComboDisplay();
+  if(State.runStats) State.runStats.bestCombo = Math.max(State.runStats.bestCombo, State.stats.currentCombo);
 
   // Phase 1.6: multi-kill tracking (Unreal-style chain)
   if(now - FEEL.mkLast < 1000) FEEL.mkCount++; else FEEL.mkCount = 1;
@@ -5403,8 +5650,9 @@ function handlePlayerDamage(player) {
     return;
   }
   State.stats.phaseDamageTaken++;
+  if(State.runStats) State.runStats.damageTaken++;  // Phase 4 run stats
   State._hitThisWave = true;                       // Phase 1.6 perfect-wave tracking
-  haptic(100);                                     // Phase 1.8
+  haptic(CONFIG.HAPTIC.playerHit);                  // Phase 1.8 / Phase 3 (config)
   player.lives--;
   // ─── EXPANSION: open world damage hook ───
   if(State.openWorldMode) onOpenWorldPlayerDamaged();
@@ -5430,11 +5678,14 @@ function handlePlayerDamage(player) {
 }
 
 function handleBossDefeat() {
+  // Phase 4: skip-intro flag + run-stats
+  if(State.boss){ markBossSeen(State.boss.level); }
+  if(State.runStats) State.runStats.bossesKilled = (State.runStats.bossesKilled||0)+1;
   // Phase 1.1: boss death = freeze frame + fullscreen white flash
-  triggerHitstop(200);
+  triggerHitstop(CONFIG.HITSTOP.boss);
   flashScreen(120);
-  addTrauma(1);
-  haptic([60,30,60,30,80]);                        // Phase 1.8
+  addTrauma(CONFIG.SHAKE.bossDeath);
+  haptic(CONFIG.HAPTIC.bossDeath);                 // Phase 1.8 / Phase 3 (config)
   // Open world boss defeat handling
   if(State.openWorldMode) {
     State.stats.bossesDefeated++;
@@ -5621,6 +5872,7 @@ function processBullets() {
       // ── Normal mode: enemies ──
       for(let e=State.enemies.length-1;e>=0;e--) {
         if(!detectCollision(b,State.enemies[e])) continue;
+        if(State.runStats) State.runStats.shotsHit++;
         triggerExplosion(b.x,b.y,'#ffff00',6);
         p.bullets.splice(i,1);
         // Phase 1.4: central hit (crit + flash + knockback + damage number)
@@ -5630,12 +5882,13 @@ function processBullets() {
       }
       // Boss bullet hit — check item boss_dmg multiplier
       if(State.boss&&p.bullets[i]&&detectCollision(p.bullets[i],State.boss)) {
+        if(State.runStats) State.runStats.shotsHit++;
         triggerExplosion(b.x,b.y,'#ffff00',6);
         p.bullets.splice(i,1);
         const bossDmgMult = p._bossDmgMult || 1;
         // Phase 1.4: boss crit + hit flash + shake + haptic
-        const _crit = Math.random() < 0.08;
-        const _dmg = b.damage * bossDmgMult * (_crit?2:1);
+        const _crit = Math.random() < CONFIG.CRIT.rate;
+        const _dmg = b.damage * bossDmgMult * (_crit?CONFIG.CRIT.multiplier:1);
         State.boss.health -= _dmg;
         State.boss._hitFlash = 2;
         addTrauma(0.4);
@@ -5806,7 +6059,7 @@ function updateGamepadControls() {
 // ═══════════════════════════════════════════════════════════════════
 window.addEventListener('keydown',e=>{
   const key=e.key.toLowerCase();
-  if(key==='p'){State.paused?resumeGame():pauseGame();return;}
+  if(key==='p' || key==='escape'){State.paused?resumeGame():pauseGame();return;}
   if(!State.running||State.paused) return;
   const p1=State.players[0], p2=State.players[1];
   if(e.key==='ArrowLeft'){if(p1)p1.isMovingLeft=true;}
@@ -15076,6 +15329,7 @@ const SETTINGS_EXTENDED = {
 };
 
 SETTINGS_EXTENDED.load();
+try { applyAccessibilityClasses(); } catch(e){}    // Phase 4.4
 
 // ─── TOOLTIP SYSTEM ───────────────────────────────────────────────────────────
 
