@@ -23,8 +23,23 @@ Acessa `http://localhost:8080/`.
 
 | Arquivo | Função |
 |---|---|
-| `index.html` | Jogo inteiro. Inclui HTML, CSS e ~16k linhas de JS num único `<script>`. |
-| `sw.js` | Service Worker pra cache offline (Phase 2.5). |
+| `index.html` | HTML + CSS + 15 `<script src="js/NN.js">` tags em ordem. |
+| `js/01-bootstrap.js` | Constants, audio synth, DPR setup, Object.defineProperty trick. |
+| `js/02-util.js` | Utilities, high scores, settings, touch controls, leaderboard. |
+| `js/03-fx-bullets.js` | Background, particles, FloatingText, bullets, ally robot. |
+| `js/04-player.js` | Player class (todos os personagens). |
+| `js/05-enemies-boss.js` | Inimigos (Enemy, UFO, Tank, etc), XP orb, PowerUp, Boss. |
+| `js/06-menu-ui.js` | Persistence, menu nav, skill tree, boss rush, stats, daily. |
+| `js/07-online.js` | PeerJS + reconnect/ping (Phase 3.7). |
+| `js/08-hud-lifecycle.js` | HUD, Survivor/Infinite UI, boss intro, phase loading, lifecycle, spawnEnemy, Phase 3 CONFIG/Input/save + Phase 1 FEEL helpers. |
+| `js/09-combat.js` | Damage/death, timer updates, collision passes. |
+| `js/10-input-openworld.js` | Spawn trigger, gamepad, keyboard, Open World galaxy. |
+| `js/11-gameloop-init.js` | Main game loop (`gameTick`), resize, bgLoop, init, adaptive monitor. |
+| `js/12-expansion-systems.js` | RPG, advanced combat, epic bosses, economy, missions, AI, VFX, achievements, ship customization, navigation. |
+| `js/13-expansion-modes.js` | Multiplayer simulation, challenges, narrative. |
+| `js/14-expansion-extras.js` | Crafting, daily rewards, faction reputation, extended skill tree, sound system, perf monitor, easter eggs, leaderboard, weapons, boss loot, synergy. |
+| `js/15-expansion-tail.js` | Final content + boost + gap-filler. |
+| `sw.js` | Service Worker (cacheia todos os 15 chunks). |
 | `preview/` | Demos standalone (testáveis isolados — usados pra QA mobile). |
 | `README.md` / `CHANGELOG.md` | Documentação. |
 
