@@ -3,6 +3,20 @@
 Space-shooter em HTML5 Canvas. Single-file (`index.html`), zero build step,
 zero dependências (exceto PeerJS via CDN, só pro modo Online).
 
+## ✨ Fable 5 Edition — `fable5/index.html`
+
+Remake do zero, single-file, **zero dependências** (nem PeerJS). Um arcade
+shooter enxuto e polido que captura a alma do jogo original: o tributo ao
+Marcelo, os 8 pilotos jogáveis com ultimates únicas (Marcelo, Robos, Felipe,
+Takeshi, Deepseek, Omega, Phantom, Titan), a gauntlet de 12 chefes terminando
+no Rafa Paoli + Genesis Omega, combos com multiplicador, power-ups, loja de
+upgrades permanentes em moedas, e bastante "juice" (partículas, screen shake,
+parallax neon). Roda direto: serve a pasta e abre `/fable5/`.
+
+```bash
+python3 -m http.server 8080   # depois: http://localhost:8080/fable5/
+```
+
 ## Rodar local
 
 Não precisa de bundler. Abre num servidor http simples:
