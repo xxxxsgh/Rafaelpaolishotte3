@@ -156,10 +156,46 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
 }
 #hudScore { top: 188px; right: 16px; font-size: 11px; color: rgba(255,232,224,0.6); letter-spacing: 2px; text-align: right; }
 #hudHint {
-  bottom: 84px; left: 50%; transform: translateX(-50%);
+  bottom: 124px; left: 50%; transform: translateX(-50%);
   font-size: 13px; color: var(--neon-green); letter-spacing: 2px;
   text-shadow: 0 0 12px rgba(57,255,20,0.8);
 }
+#hudShards { bottom: 62px; left: 296px; font-size: 13px; color: #c44dff; letter-spacing: 1px; text-shadow: 0 0 10px rgba(196,77,255,0.6); }
+#hudCombo {
+  top: 150px; left: 16px; font-size: 16px; color: var(--gold);
+  letter-spacing: 2px; text-shadow: 0 0 12px rgba(255,214,10,0.8);
+}
+#hudAbilities { bottom: 64px; left: 50%; transform: translateX(-50%); display: none; gap: 6px; }
+.hud-on #hudAbilities { display: flex; }
+.ab-slot {
+  min-width: 86px; padding: 5px 8px; text-align: center;
+  background: rgba(10,5,16,0.7); border: 1px solid rgba(123,47,255,0.4);
+  font-size: 8px; letter-spacing: 1px; color: rgba(255,232,224,0.55);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.ab-slot.sel { border-color: #c44dff; color: #fff; box-shadow: 0 0 12px rgba(196,77,255,0.4); }
+.ab-slot .ab-cd { display: block; font-size: 10px; color: #c44dff; margin-top: 2px; }
+#quoteEl {
+  position: fixed; top: 22%; left: 50%; transform: translateX(-50%);
+  z-index: 17; font-family: 'Orbitron', monospace; font-size: 17px;
+  color: #ff5e9e; text-shadow: 0 0 18px rgba(255,0,110,0.9);
+  letter-spacing: 2px; opacity: 0; transition: opacity 0.5s;
+  pointer-events: none; text-align: center; max-width: 80vw;
+}
+.shop-card.cursed { border-color: rgba(196,77,255,0.5); background: rgba(123,47,255,0.07); }
+.shop-card.cursed .sc-name { color: #c44dff; }
+.shop-card.cursed button { border-color: #c44dff; color: #c44dff; }
+.shop-card .sc-curse { font-size: 11px; color: #ff6b6b; }
+#logScreen { border-color: rgba(57,255,20,0.4); }
+#logScreen h1 { color: var(--neon-green); text-shadow: 0 0 24px rgba(57,255,20,0.6); font-size: 18px; }
+#logText { font-size: 15px; line-height: 1.7; color: rgba(220,255,220,0.85); white-space: pre-line; }
+#dailyScreen h1 { color: var(--gold); text-shadow: 0 0 26px rgba(255,214,10,0.7); }
+.daily-mod {
+  border: 1px solid rgba(255,214,10,0.3); padding: 10px 14px; margin-top: 8px;
+  background: rgba(255,214,10,0.04);
+}
+.daily-mod .dm-name { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--gold); letter-spacing: 1px; }
+.daily-mod .dm-desc { font-size: 13px; color: rgba(255,232,224,0.6); margin-top: 2px; }
 
 /* ── BOSS BAR ── */
 #bossBarWrap {
@@ -258,10 +294,13 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
   <div class="subtitle">Queda em Vermilion</div>
   <div class="menu-buttons">
     <button class="btn" onclick="UI.startStory()">▶ NOVA EXPEDIÇÃO</button>
+    <button class="btn" style="border-color:var(--gold);color:var(--gold);" onclick="UI.showDaily()">📅 DESAFIO DIÁRIO</button>
     <button class="btn btn-cyan" onclick="UI.showControls()">CONTROLES</button>
     <button class="btn btn-dim" onclick="location.href='index.html'">◀ JOGO ORIGINAL</button>
   </div>
   <div id="titleBest"></div>
+  <div id="titleDaily" style="margin-top:6px;font-family:'Orbitron',monospace;font-size:10px;color:rgba(255,214,10,0.6);letter-spacing:2px;"></div>
+  <div id="titleEndings" style="margin-top:6px;font-family:'Orbitron',monospace;font-size:10px;color:rgba(255,232,224,0.35);letter-spacing:2px;"></div>
 </div>
 
 <!-- STORY -->
@@ -281,6 +320,9 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
     <tr><td>CLIQUE / SEGURAR</td><td>Atirar</td></tr>
     <tr><td>ESPAÇO / SHIFT</td><td>Dash (esquiva com invencibilidade)</td></tr>
     <tr><td>1 · 2 · 3 · 4</td><td>Trocar de arma</td></tr>
+    <tr><td>R</td><td>Recarregar — aperte de novo na zona verde: pente com +20% de dano</td></tr>
+    <tr><td>Q</td><td>Habilidade de guardião (ganhe derrotando bosses)</td></tr>
+    <tr><td>TAB</td><td>Trocar a habilidade selecionada</td></tr>
     <tr><td>E</td><td>Interagir (nave / oficina)</td></tr>
     <tr><td>P / ESC</td><td>Pausar</td></tr>
     <tr><td>M</td><td>Som ligado/desligado</td></tr>
@@ -306,6 +348,8 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
   <div class="shop-grid" id="shopUpgrades"></div>
   <div class="shop-section-label">ARSENAL</div>
   <div class="shop-grid" id="shopWeapons"></div>
+  <div class="shop-section-label" id="cursedLabel" style="color:#c44dff;">UPGRADES PROIBIDOS</div>
+  <div class="shop-grid" id="shopCursed"></div>
   <button class="btn btn-green" onclick="UI.closeShop()">▶ VOLTAR AO COMBATE</button>
 </div>
 
@@ -318,13 +362,14 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
   <button class="btn btn-dim" onclick="UI.toTitle()">MENU PRINCIPAL</button>
 </div>
 
-<!-- VICTORY -->
+<!-- VICTORY / FINAL -->
 <div id="victoryScreen" class="overlay">
-  <h1>✦ DECOLAGEM ✦</h1>
-  <p>A nave rasga o céu carmesim de Vermilion-7. Lá embaixo, o eco de Genesis finalmente se cala. O piloto que destruiu um deus de metal agora volta para casa — mas os sensores captam outra anomalia no setor vizinho...</p>
-  <p style="margin-top:10px;color:var(--cyan);font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;">CONTINUA…</p>
+  <h1 id="victoryTitle">✦ DECOLAGEM ✦</h1>
+  <p id="victoryBody">A nave rasga o céu carmesim de Vermilion-7. Lá embaixo, o eco de Genesis finalmente se cala. O piloto que destruiu um deus de metal agora volta para casa — mas os sensores captam outra anomalia no setor vizinho...</p>
+  <p id="victoryNext" style="margin-top:10px;color:var(--cyan);font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;">CONTINUA…</p>
   <div class="stats-list" id="victoryStats"></div>
   <div class="new-record" id="victoryRecord">★ NOVO RECORDE ★</div>
+  <button class="btn" id="ngBtn" style="display:none;border-color:#c44dff;color:#c44dff;" onclick="UI.newGamePlus()">⟁ NEW GAME+ — INIMIGOS +60%, MANTÉM SEU ARSENAL</button>
   <button class="btn btn-green" onclick="UI.toTitle()">MENU PRINCIPAL</button>
 </div>
 
@@ -341,7 +386,10 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
 </div>
 <div class="hud-el" id="hudScrap">⬡ 0</div>
 <div class="hud-el" id="hudDash">DASH ▰▰▰</div>
+<div class="hud-el" id="hudShards">◆ 0</div>
+<div class="hud-el" id="hudCombo"></div>
 <div class="hud-el" id="hudWeapons"></div>
+<div class="hud-el" id="hudAbilities"></div>
 <div class="hud-el" id="minimapWrap"><canvas id="minimap" width="150" height="150"></canvas></div>
 <div class="hud-el" id="hudScore">SCORE 0</div>
 <div class="hud-el" id="hudHint"></div>
@@ -353,6 +401,24 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
 <div id="bossIntroEl">
   <div id="bossIntroName"></div>
   <div id="bossIntroSub"></div>
+</div>
+<div id="quoteEl"></div>
+
+<!-- LOG DA CALIBURN -->
+<div id="logScreen" class="overlay">
+  <h1 id="logTitle">REGISTRO ENCONTRADO</h1>
+  <div id="logText"></div>
+  <button class="btn btn-green" onclick="UI.closeLog()">FECHAR [E]</button>
+</div>
+
+<!-- DESAFIO DIÁRIO -->
+<div id="dailyScreen" class="overlay">
+  <h1>📅 DESAFIO DIÁRIO</h1>
+  <p style="font-size:13px;letter-spacing:1px;">Mesma seed para todo mundo hoje. Modificadores de <span id="dailyDate" style="color:var(--gold);font-family:'Orbitron',monospace;"></span>:</p>
+  <div id="dailyMods"></div>
+  <p id="dailyBestLine" style="margin-top:12px;font-family:'Orbitron',monospace;font-size:11px;color:var(--gold);letter-spacing:2px;"></p>
+  <button class="btn" onclick="UI.startDaily()">▶ ENFRENTAR O DIA</button>
+  <button class="btn btn-dim" onclick="document.getElementById('dailyScreen').classList.remove('active');document.getElementById('titleScreen').classList.add('active')">VOLTAR</button>
 </div>
 
 <button id="muteBtn" onclick="Sfx.toggle()" title="Som (M)">🔊</button>
@@ -462,18 +528,63 @@ addEventListener('keydown', e => { if (e.key === 'm' || e.key === 'M') Sfx.toggl
 /* ════════════ CONFIGURAÇÕES ════════════ */
 const WEAPONS = [
   { id: 'pistol',  name: 'PULSAR',   slot: 1, dmg: 12, cd: 0.24, speed: 640, spread: 0.03, pellets: 1, ammo: Infinity, color: '#00f5ff', size: 4, price: 0 },
-  { id: 'rifle',   name: 'FOTÔNICO', slot: 2, dmg: 9,  cd: 0.085, speed: 760, spread: 0.07, pellets: 1, ammo: 90,  color: '#39ff14', size: 3.5, price: 120, ammoPack: 60, ammoPrice: 25 },
-  { id: 'shotgun', name: 'NOVA',     slot: 3, dmg: 8,  cd: 0.72, speed: 560, spread: 0.34, pellets: 6, ammo: 18,  color: '#ffd60a', size: 3.5, price: 200, ammoPack: 12, ammoPrice: 30 },
-  { id: 'void',    name: 'VOID',     slot: 4, dmg: 55, cd: 0.95, speed: 420, spread: 0,    pellets: 1, ammo: 8,   color: '#b366ff', size: 7, price: 340, ammoPack: 6, ammoPrice: 45, aoe: 90 },
+  { id: 'rifle',   name: 'FOTÔNICO', slot: 2, dmg: 9,  cd: 0.085, speed: 760, spread: 0.07, pellets: 1, ammo: 90,  color: '#39ff14', size: 3.5, price: 120, ammoPack: 60, ammoPrice: 25, mag: 30, reload: 1.1 },
+  { id: 'shotgun', name: 'NOVA',     slot: 3, dmg: 8,  cd: 0.72, speed: 560, spread: 0.34, pellets: 6, ammo: 18,  color: '#ffd60a', size: 3.5, price: 200, ammoPack: 12, ammoPrice: 30, mag: 6, reload: 1.4 },
+  { id: 'void',    name: 'VOID',     slot: 4, dmg: 55, cd: 0.95, speed: 420, spread: 0,    pellets: 1, ammo: 8,   color: '#b366ff', size: 7, price: 340, ammoPack: 6, ammoPrice: 45, aoe: 90, mag: 2, reload: 1.6 },
+];
+
+const CURSED_UPGRADES = [
+  { id: 'pacto',   name: 'PACTO DE SANGUE',    buff: '+40% de dano por nível',          curse: '-25 HP máximo por nível',         cost: 6, max: 2 },
+  { id: 'rastro',  name: 'RASTRO ARDENTE',     buff: 'O dash deixa um rastro de fogo',  curse: '+50% de recarga do dash',         cost: 8, max: 1 },
+  { id: 'sede',    name: 'SEDE DO VAZIO',      buff: 'Abates curam 3 HP',               curse: 'Nanobots desativados',            cost: 7, max: 1 },
+  { id: 'reflexo', name: 'REFLEXO CORROMPIDO', buff: '+25% velocidade · +15% cadência', curse: 'Tomar dano drena 5 de sucata',    cost: 7, max: 1 },
+];
+
+const ABILITIES = [
+  { name: 'CHAMADO DO ENXAME', desc: 'Invoca 2 crawlers aliados',          cd: 24 },
+  { name: 'PELE DE PEDRA',     desc: '3s de escudo impenetrável',          cd: 20 },
+  { name: 'SALTO APEX',        desc: 'Teleporte curto na direção da mira', cd: 8 },
+  { name: 'CUSPE ÁCIDO',       desc: 'Poça de ácido aliada na mira',       cd: 15 },
+];
+
+const ECO_QUOTES = {
+  spawn:  'VOCÊ ATRAVESSOU O VAZIO... SÓ PARA ME DEVOLVER UM CORPO.',
+  phase2: 'VOCÊ ME DESTRUIU... E ME TROUXE JUNTO.',
+  phase3: 'SINTA OS ESTILHAÇOS. VOCÊ JÁ É QUASE MEU.',
+  death:  'NÓS... SOMOS... O ECO...',
+};
+
+const LOGS = [
+  { x: 1800, y: 1150, title: 'LOG 1 — NAVE CALIBURN, DIA 1',     text: 'Expedição Caliburn, registro da capitã Veyra.\nA fenda nos cuspiu aqui como lixo. O planeta não consta em nenhuma carta. Batizei de Vermilion pelo céu — vermelho como aviso.\nSomos seis. A nave, como nós, está em pedaços.' },
+  { x: 1100, y: 1750, title: 'LOG 2 — BRAKK, ENGENHEIRO',        text: 'Quatro fragmentos vitais espalhados pelos extremos. Dá pra reparar, eu JURO que dá.\nEncontrei uns estilhaços roxos no rastro da queda. Vibram. Esquentam a mão.\nVou estudar um.' },
+  { x: 2500, y: 1850, title: 'LOG 3 — LYRA, BATEDORA',           text: 'Mapeei o leste. A fauna corre em círculos perfeitos, como se patrulhasse.\nSou mais rápida que tudo aqui. Por enquanto.\nOs estilhaços do Brakk sussurram à noite. Mandei ele jogar fora. Ele riu.' },
+  { x: 1850, y: 2500, title: 'LOG 4 — DRA. OSSE, BIÓLOGA',       text: 'As criaturas perto dos estilhaços estão... mudando. Maiores. Simétricas demais.\nIsso não é evolução, é ENGENHARIA. Algo nos estilhaços reescreve o que toca.\nBrakk não tira mais a luva da mão direita.' },
+  { x: 700,  y: 1850, title: 'LOG 5 — CAPITÃ VEYRA',             text: 'Confrontei o Brakk. A pele do braço dele parece basalto. Ele diz que está mais forte, que termina o reparo sozinho.\nOs sussurros têm uma voz agora.\nEla se chama GENESIS.' },
+  { x: 1750, y: 700,  title: 'LOG 6 — DRA. OSSE',                text: 'A rainha do ninho ao norte protege os ovos como se fossem da tripulação.\nHoje entendi por quê. Dentro da membrana de um deles... um uniforme da Caliburn.\nEles não viraram comida. Viraram FAMÍLIA.' },
+  { x: 2900, y: 1750, title: 'LOG 7 — VEYRA',                    text: 'A Lyra não voltou do leste.\nÀ noite, algo veloz demais circula o acampamento. Corre como ela corria. Onde aponto a lanterna, já não está.\nNão atirei. Ainda não consegui.' },
+  { x: 1850, y: 2900, title: 'LOG 8 — ÚLTIMO REGISTRO MÉDICO',   text: 'Brakk terminou de virar pedra no oeste. Parado. Esperando ordens de algo que não existe mais.\nO pântano engoliu a Osse — três cabeças saíram da água e uma delas USOU A VOZ DELA.\nSó restamos eu e o silêncio.' },
+  { x: 2400, y: 2350, title: 'LOG 9 — PARA QUEM CAIU DEPOIS',    text: 'Se você está lendo isto: a nave NÃO É o problema. Dá pra reparar. Eu vi.\nO problema é o preço.\nNão toque nos estilhaços roxos. Eles não te dão poder.\nEles te dão a ELE.\n— V.' },
+];
+
+const DAILY_MODS = [
+  { id: 'chargers', name: 'ESTOURO DE CHARGERS', desc: 'Muito mais chargers na fauna' },
+  { id: 'scrap15',  name: 'VEIO RICO',           desc: 'Sucata ×1.5' },
+  { id: 'fast',     name: 'FAUNA VELOZ',         desc: 'Inimigos +30% mais rápidos' },
+  { id: 'night',    name: 'NOITE ETERNA',        desc: 'O sol nunca nasce em Vermilion' },
+  { id: 'ammo2',    name: 'ARSENAL FARTO',       desc: 'Drops de munição em dobro' },
+  { id: 'hp25',     name: 'TRAJE RACHADO',       desc: '-25 HP máximo' },
+  { id: 'corrupt',  name: 'MARÉ ROXA',           desc: '+20% de chance de corrupção' },
+  { id: 'events60', name: 'PLANETA INSTÁVEL',    desc: 'Eventos dinâmicos a cada ~60s' },
 ];
 
 const UPGRADES = [
-  { id: 'dmg',    name: 'DANO',          desc: '+15% de dano por nível',          base: 40, max: 6 },
-  { id: 'hp',     name: 'CASCO',         desc: '+20 HP máximo por nível',          base: 35, max: 6 },
-  { id: 'spd',    name: 'PROPULSORES',   desc: '+8% de velocidade por nível',      base: 30, max: 4 },
-  { id: 'dash',   name: 'REATOR DASH',   desc: '-15% de recarga do dash',          base: 30, max: 3 },
-  { id: 'magnet', name: 'ÍMÃ DE SUCATA', desc: '+60 de raio de coleta',            base: 25, max: 3 },
-  { id: 'regen',  name: 'NANOBOTS',      desc: '+1 HP/s de regeneração',           base: 60, max: 3 },
+  { id: 'dmg',    name: 'DANO',            desc: '+15% de dano por nível',           base: 40, max: 6 },
+  { id: 'hp',     name: 'CASCO',           desc: '+20 HP máximo por nível',           base: 35, max: 6 },
+  { id: 'spd',    name: 'PROPULSORES',     desc: '+8% de velocidade por nível',       base: 30, max: 4 },
+  { id: 'dash',   name: 'REATOR DASH',     desc: '-15% de recarga do dash',           base: 30, max: 3 },
+  { id: 'magnet', name: 'ÍMÃ DE SUCATA',   desc: '+60 de raio de coleta',             base: 25, max: 3 },
+  { id: 'regen',  name: 'NANOBOTS',        desc: '+1 HP/s de regeneração',            base: 60, max: 3 },
+  { id: 'blade',  name: 'LÂMINAS DE DASH', desc: 'Dash causa 30 de dano por nível',   base: 45, max: 2 },
 ];
 
 const ENEMY_TYPES = {
@@ -482,7 +593,18 @@ const ENEMY_TYPES = {
   flyer:   { hp: 20, speed: 215, dmg: 9,  r: 12, color: '#4ad7ff', scrap: 2, score: 15, behavior: 'strafe', range: 260, shotCd: 2.2, bSpeed: 300 },
   charger: { hp: 64, speed: 105, dmg: 24, r: 20, color: '#ff5252', scrap: 5, score: 25, behavior: 'charge' },
   brood:   { hp: 95, speed: 55,  dmg: 12, r: 24, color: '#d96bff', scrap: 8, score: 40, behavior: 'spawner', spawnCd: 5.5 },
+  bomber:  { hp: 30, speed: 195, dmg: 30, r: 15, color: '#ff9100', scrap: 3, score: 20, behavior: 'bomb' },
+  sniper:  { hp: 45, speed: 70,  dmg: 26, r: 17, color: '#ff2e93', scrap: 5, score: 30, behavior: 'snipe', range: 620, bSpeed: 540 },
+  healer:  { hp: 55, speed: 95,  dmg: 8,  r: 16, color: '#5dffc3', scrap: 6, score: 35, behavior: 'heal' },
 };
+
+/* falas dos guardiões a 50% de HP — ecos da tripulação da Caliburn */
+const BOSS_QUOTES = [
+  'VOCÊS TIRARAM MINHA TRIPULAÇÃO. ESTES SÃO MEUS FILHOS AGORA.',
+  'EU... QUASE... TERMINEI... O REPARO...',
+  'RÁPIDA DEMAIS... PARA... MORRER...',
+  'TRÊS GARGANTAS... E A VOZ AINDA É MINHA...',
+];
 
 const BOSSES = [
   { name: 'RAINHA DO ENXAME',  sub: 'Guardiã do Fragmento Norte',  hp: 950,  r: 46, color: '#d96bff', x: SHIP_POS.x, y: 380 },
@@ -502,20 +624,33 @@ const STORY_PAGES = [
 
 /* ════════════ ESTADO DO JOGO ════════════ */
 const Game = {
-  state: 'title',   // title | story | cinematic | play | shop | pause | over | victory
+  state: 'title',   // title | story | cinematic | play | shop | pause | log | over | victory
   time: 0, cineT: 0,
   player: null,
   bullets: [], ebullets: [], enemies: [], particles: [], pickups: [], pools: [],
-  parts: [],          // fragmentos da nave
+  floaters: [], allies: [],
+  parts: [], logs: [], logsRead: 0,
   boss: null, bossIntroT: 0, pendingBoss: -1,
   spawnT: 0, hintT: 0,
+  combo: 0, comboT: 0, hitstop: 0,
+  event: null, eventT: 90,
+  abilities: [false, false, false, false], abilityCd: [0, 0, 0, 0], abilitySel: -1,
+  night: false, darkness: 0,
+  ngPlus: 0, daily: null,
+  dmgDirs: [], arena: null,
   cam: { x: 0, y: 0, shake: 0 },
   score: 0, kills: 0, scrapTotal: 0, bossKills: 0,
   partsCollected: 0, shipRepaired: false, canTakeOff: false,
   best: 0,
   stats: {},
 };
-try { Game.best = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}').best || 0; } catch (e) {}
+let SAVE = { best: 0, endings: {}, daily: null };
+try { SAVE = Object.assign(SAVE, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
+Game.best = SAVE.best || 0;
+function persistSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function dailyMod(id) { return !!(Game.daily && Game.daily.mods.some(m => m.id === id)); }
+function comboMult() { return 1 + Math.min(7, Math.floor(Game.combo / 4)); }
 
 function newPlayer() {
   return {
@@ -526,26 +661,38 @@ function newPlayer() {
     weapon: 0, shootT: 0,
     owned: [true, false, false, false],
     ammo: [Infinity, 0, 0, 0],
-    dashT: 0, dashCd: 0, invulnT: 0,
-    scrap: 0,
+    magAmmo: [0, 0, 0, 0], reload: null, magBuff: false,
+    dashT: 0, dashCd: 0, invulnT: 0, shieldT: 0,
+    scrap: 0, shards: 0,
     upg: { dmg: 0, hp: 0, spd: 0, dash: 0, magnet: 0, regen: 0 },
+    cursed: { pacto: 0, rastro: 0, sede: 0, reflexo: 0 },
+    trail: [], fireT: 0,
+    meleeCd: 0, slashT: 0, chargeT: 0, dashId: 0,
     walkT: 0,
   };
 }
 function pStat(p) {
+  const c = p.cursed;
+  let maxHp = 100 + p.upg.hp * 20 - c.pacto * 25;
+  if (dailyMod('hp25')) maxHp -= 25;
   return {
-    dmgMult: 1 + p.upg.dmg * 0.15,
-    maxHp: 100 + p.upg.hp * 20,
-    speed: 250 * (1 + p.upg.spd * 0.08),
-    dashCdMax: 1.6 * Math.pow(0.85, p.upg.dash),
+    dmgMult: (1 + p.upg.dmg * 0.15 + c.pacto * 0.4) * (p.magBuff ? 1.2 : 1),
+    maxHp: Math.max(25, maxHp),
+    speed: 250 * (1 + p.upg.spd * 0.08) * (c.reflexo ? 1.25 : 1),
+    dashCdMax: 1.6 * Math.pow(0.85, p.upg.dash) * (c.rastro ? 1.5 : 1),
     magnet: 70 + p.upg.magnet * 60,
-    regen: p.upg.regen,
+    regen: c.sede ? 0 : p.upg.regen,
+    fireMult: c.reflexo ? 0.87 : 1,
   };
+}
+function corruptionLevel(p) {
+  const c = p.cursed;
+  return c.pacto + c.rastro + c.sede + c.reflexo;
 }
 
 /* ════════════ INPUT ════════════ */
 const Keys = {};
-const Mouse = { x: 0, y: 0, down: false };
+const Mouse = { x: 0, y: 0, down: false, rdown: false };
 addEventListener('keydown', e => {
   Keys[e.code] = true;
   if (Game.state === 'play') {
@@ -554,23 +701,39 @@ addEventListener('keydown', e => {
     if (e.code === 'Digit3') switchWeapon(2);
     if (e.code === 'Digit4') switchWeapon(3);
     if (e.code === 'KeyE') tryInteract();
+    if (e.code === 'KeyF') tryMelee();
+    if (e.code === 'KeyQ') useAbility();
+    if (e.code === 'Tab') { e.preventDefault(); cycleAbility(); }
+    if (e.code === 'KeyR' && !e.repeat) attemptOrStartReload();
     if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') { e.preventDefault(); tryDash(); }
     if (e.code === 'KeyP' || e.code === 'Escape') UI.pause();
   } else if (Game.state === 'pause' && (e.code === 'KeyP' || e.code === 'Escape')) {
     UI.resume();
   } else if (Game.state === 'shop' && (e.code === 'KeyE' || e.code === 'Escape')) {
     UI.closeShop();
+  } else if (Game.state === 'log' && (e.code === 'KeyE' || e.code === 'Escape' || e.code === 'Enter')) {
+    UI.closeLog();
   }
 });
 addEventListener('keyup', e => { Keys[e.code] = false; });
 canvas.addEventListener('mousemove', e => { Mouse.x = e.clientX; Mouse.y = e.clientY; });
-canvas.addEventListener('mousedown', e => { if (e.button === 0) Mouse.down = true; });
-addEventListener('mouseup', e => { if (e.button === 0) Mouse.down = false; });
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 0) Mouse.down = true;
+  if (e.button === 2) Mouse.rdown = true;
+});
+addEventListener('mouseup', e => {
+  if (e.button === 0) Mouse.down = false;
+  if (e.button === 2) {
+    Mouse.rdown = false;
+    if (Game.state === 'play' && Game.player) releaseCharge();
+  }
+});
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 /* ════════════ TERRENO (pré-renderizado) ════════════ */
 const TERRAIN_SCALE = 0.5;
 let terrainCanvas = null;
+let terrainCtx = null;
 let glowDecos = [];     // cristais animados desenhados ao vivo
 function buildTerrain() {
   const rng = mulberry32(20470613);
@@ -578,6 +741,7 @@ function buildTerrain() {
   terrainCanvas.width = WORLD.w * TERRAIN_SCALE;
   terrainCanvas.height = WORLD.h * TERRAIN_SCALE;
   const t = terrainCanvas.getContext('2d');
+  terrainCtx = t;
   t.scale(TERRAIN_SCALE, TERRAIN_SCALE);
 
   // base
@@ -668,19 +832,41 @@ function buildTerrain() {
 }
 
 /* ════════════ INÍCIO DE EXPEDIÇÃO ════════════ */
-function startRun() {
+function startRun(keepBuild) {
+  const old = keepBuild ? Game.player : null;
+  Game.ngPlus = keepBuild ? Game.ngPlus + 1 : 0;
   Game.player = newPlayer();
+  if (old) {
+    const p = Game.player;
+    p.upg = old.upg; p.cursed = old.cursed;
+    p.owned = old.owned; p.ammo = old.ammo; p.magAmmo = old.magAmmo;
+    p.scrap = old.scrap; p.shards = old.shards;
+    p.hp = pStat(p).maxHp;
+  }
   Game.bullets = []; Game.ebullets = []; Game.enemies = [];
   Game.particles = []; Game.pickups = []; Game.pools = [];
+  Game.floaters = []; Game.allies = [];
   Game.boss = null; Game.pendingBoss = -1; Game.bossIntroT = 0;
   Game.spawnT = 1.5; Game.time = 0;
+  Game.combo = 0; Game.comboT = 0; Game.hitstop = 0;
+  Game.event = null; scheduleEvent();
+  Game.abilities = [false, false, false, false];
+  Game.abilityCd = [0, 0, 0, 0]; Game.abilitySel = -1;
   Game.score = 0; Game.kills = 0; Game.scrapTotal = 0; Game.bossKills = 0;
+  Game.stats = {}; Game.dmgDirs = []; Game.arena = null;
   Game.partsCollected = 0; Game.shipRepaired = false; Game.canTakeOff = false;
   Game.parts = BOSSES.slice(0, 4).map((b, i) => ({
     idx: i, name: PART_NAMES[i], x: b.x, y: b.y - 80,
     collected: false, shielded: true, bossDead: false, triggered: false,
   }));
+  Game.logs = LOGS.map(l => Object.assign({ read: false }, l));
+  Game.logsRead = 0;
   buildTerrain();
+  // NG+: o planeta já acordou corrompido
+  for (let n = 0; n < Game.ngPlus; n++) {
+    for (const b of BOSSES) corruptTerrain(b.x + n * 60, b.y - n * 40);
+  }
+  syncAbilities();
   Game.cineT = 0;
   Game.state = 'cinematic';
   Sfx.init();
@@ -692,25 +878,34 @@ function respawnRun() {
   p.x = SHIP_POS.x + 90; p.y = SHIP_POS.y + 130;
   const st = pStat(p);
   p.hp = st.maxHp; p.invulnT = 2; p.dashCd = 0; p.shootT = 0;
+  p.reload = null; p.magBuff = false; p.shieldT = 0; p.trail = [];
   p.scrap = Math.floor(p.scrap * 0.7);
   Game.enemies = []; Game.ebullets = []; Game.bullets = []; Game.pools = [];
+  Game.floaters = []; Game.allies = [];
+  Game.combo = 0; Game.comboT = 0; Game.hitstop = 0;
+  Game.event = null; scheduleEvent();
+  Game.abilityCd = [0, 0, 0, 0];
   Game.boss = null; Game.bossIntroT = 0; Game.pendingBoss = -1;
   // bosses não derrotados podem ser re-enfrentados
   Game.parts.forEach(pt => { if (!pt.bossDead) pt.triggered = false; });
   Game.spawnT = 3;
   Game.state = 'play';
-  syncHud();
+  syncHud(); syncAbilities();
 }
 
 /* ════════════ AÇÕES DO JOGADOR ════════════ */
 function switchWeapon(i) {
   const p = Game.player;
-  if (p.owned[i]) { p.weapon = i; syncHud(); Sfx.tone(440, 0.05, 'square', 0.05); }
+  if (p.owned[i] && p.weapon !== i) {
+    p.weapon = i; p.reload = null; p.magBuff = false;
+    syncHud(); Sfx.tone(440, 0.05, 'square', 0.05);
+  }
 }
 function tryDash() {
   const p = Game.player;
   if (p.dashCd > 0 || p.dashT > 0) return;
   p.dashT = 0.18;
+  p.dashId++;
   p.dashCd = pStat(p).dashCdMax;
   p.invulnT = Math.max(p.invulnT, 0.3);
   Sfx.dash();
@@ -728,26 +923,74 @@ function repairShip() {
   Game.shipRepaired = true;
   setObjective('ALERTA: ASSINATURA DE GENESIS DETECTADA');
   showHint('A NAVE ESTÁ PRONTA... MAS ALGO ACORDOU.');
+  corruptTerrain(SHIP_POS.x - 150, SHIP_POS.y - 150);
+  corruptTerrain(SHIP_POS.x + 150, SHIP_POS.y + 100);
   Game.cam.shake = 18;
   Sfx.bossRoar();
   setTimeout(() => { if (Game.state === 'play') triggerBoss(4); }, 1600);
 }
+function sessionStats() {
+  const s = Game.stats;
+  const acc = s.shots ? Math.round((s.hits || 0) / s.shots * 100) : 0;
+  const dps = Game.time > 0 ? Math.round((s.dmg || 0) / Game.time) : 0;
+  const dist = Math.round((s.dist || 0) / 40);
+  return [
+    ['PRECISÃO', acc + '%'],
+    ['DPS MÉDIO', dps],
+    ['DISTÂNCIA PERCORRIDA', dist + 'm'],
+  ];
+}
+function recordDaily() {
+  if (!Game.daily) return;
+  const t = todayStr();
+  if (!SAVE.daily || SAVE.daily.date !== t || Game.score > SAVE.daily.score) {
+    SAVE.daily = { date: t, score: Game.score };
+    persistSave();
+  }
+}
 function winGame() {
+  const p = Game.player;
+  const cor = corruptionLevel(p);
+  const dark = cor >= 3;   // corrompido demais: a nave rejeita você
   Game.state = 'victory';
   Sfx.stopDrone();
-  Sfx.part();
-  const timeStr = fmtTime(Game.time);
-  Game.score += 2500; // bônus de fuga
-  const isRecord = Game.score > Game.best;
-  if (isRecord) {
-    Game.best = Game.score;
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ best: Game.best })); } catch (e) {}
+  Game.score += dark ? 1000 : 2500;
+  SAVE.endings = SAVE.endings || {};
+  if (dark) SAVE.endings.dark = true; else SAVE.endings.good = true;
+  recordDaily();
+  const isRecord = !Game.daily && Game.score > Game.best;
+  if (isRecord) { Game.best = Game.score; SAVE.best = Game.best; }
+  persistSave();
+
+  const h1 = document.getElementById('victoryTitle');
+  const body = document.getElementById('victoryBody');
+  const next = document.getElementById('victoryNext');
+  if (dark) {
+    h1.textContent = '◆ O NOVO ECO ◆';
+    h1.style.color = '#c44dff';
+    h1.style.textShadow = '0 0 30px rgba(196,77,255,0.8)';
+    body.innerHTML = 'A nave liga... e morre. O núcleo rejeita suas mãos — roxas, pulsando como as veias do planalto. Você entende, tarde demais, o último aviso da Caliburn: os estilhaços não dão poder. <b>Eles dão a ELE.</b><br><br>No alto da fuselagem morta, um novo Eco abre os olhos.';
+    next.textContent = 'FINAL CORROMPIDO — ESCAPE COM MENOS DE 3 PACTOS PARA VOLTAR PARA CASA';
+    next.style.color = '#c44dff';
+    Sfx.bossRoar();
+  } else {
+    h1.textContent = '✦ DECOLAGEM ✦';
+    h1.style.color = '';
+    h1.style.textShadow = '';
+    body.innerHTML = 'A nave rasga o céu carmesim de Vermilion-7. Lá embaixo, o eco de Genesis finalmente se cala. O piloto que destruiu um deus de metal agora volta para casa — mas os sensores captam outra anomalia no setor vizinho...';
+    next.textContent = 'CONTINUA…';
+    next.style.color = '';
+    Sfx.part();
   }
+  document.getElementById('ngBtn').style.display = (!dark && !Game.daily) ? 'block' : 'none';
   document.getElementById('victoryStats').innerHTML = statRows([
-    ['TEMPO EM VERMILION', timeStr],
+    ['TEMPO EM VERMILION', fmtTime(Game.time)],
     ['CRIATURAS ABATIDAS', Game.kills],
     ['GUARDIÕES DERROTADOS', Game.bossKills + '/5'],
+    ['REGISTROS DA CALIBURN', Game.logsRead + '/' + LOGS.length],
+    ['CORRUPÇÃO', cor + '/5'],
     ['SUCATA COLETADA', '⬡ ' + Game.scrapTotal],
+    ...sessionStats(),
     ['SCORE FINAL', Game.score],
   ]);
   document.getElementById('victoryRecord').style.display = isRecord ? 'block' : 'none';
@@ -758,10 +1001,12 @@ function gameOver() {
   Game.state = 'over';
   Sfx.stopDrone();
   Sfx.explode();
+  recordDaily();
   document.getElementById('gameOverStats').innerHTML = statRows([
     ['TEMPO SOBREVIVIDO', fmtTime(Game.time)],
     ['CRIATURAS ABATIDAS', Game.kills],
     ['FRAGMENTOS', Game.partsCollected + '/4'],
+    ...sessionStats(),
     ['SCORE', Game.score],
   ]);
   const flavors = [
@@ -781,20 +1026,22 @@ function fmtTime(s) {
   return `${m}:${ss.toString().padStart(2, '0')}`;
 }
 
-/* ════════════ TIRO ════════════ */
+/* ════════════ TIRO / RECARGA ATIVA ════════════ */
 function shoot() {
   const p = Game.player;
-  if (p.shootT > 0) return;
+  if (p.shootT > 0 || p.reload) return;
   const w = WEAPONS[p.weapon];
-  if (w.ammo !== Infinity && p.ammo[p.weapon] <= 0) {
-    // sem munição: volta pra pistola
-    showHint('SEM MUNIÇÃO — [1] PULSAR');
-    p.weapon = 0; syncHud();
+  if (w.mag && p.magAmmo[p.weapon] <= 0) {
+    if (p.ammo[p.weapon] > 0) { startReload(); }
+    else {
+      showHint('SEM MUNIÇÃO — [1] PULSAR');
+      p.weapon = 0; syncHud();
+    }
     return;
   }
-  p.shootT = w.cd;
-  if (w.ammo !== Infinity) { p.ammo[p.weapon]--; syncHud(); }
   const st = pStat(p);
+  p.shootT = w.cd * st.fireMult;
+  if (w.mag) { p.magAmmo[p.weapon]--; syncHud(); }
   for (let i = 0; i < w.pellets; i++) {
     const a = p.aim + (rand() - 0.5) * 2 * w.spread + (w.pellets > 1 ? (i - (w.pellets - 1) / 2) * 0.09 : 0);
     Game.bullets.push({
@@ -809,9 +1056,51 @@ function shoot() {
   spawnParticle(p.x + Math.cos(p.aim) * 22, p.y + Math.sin(p.aim) * 22, w.color, 2, 0.15);
 }
 
+function attemptOrStartReload() {
+  const p = Game.player;
+  if (p.reload) {
+    const r = p.reload;
+    if (r.tried) return;
+    r.tried = true;
+    const f = r.t / r.dur;
+    if (f >= r.ws && f <= r.we) finishReload(true);
+    else Sfx.tone(150, 0.15, 'square', 0.08, -40);
+  } else startReload();
+}
+function startReload() {
+  const p = Game.player, i = p.weapon, w = WEAPONS[i];
+  if (!w.mag || p.reload) return;
+  if (p.magAmmo[i] >= w.mag || p.ammo[i] <= 0) return;
+  const ws = 0.45 + rand() * 0.25;
+  p.magBuff = false;
+  p.reload = { t: 0, dur: w.reload, ws, we: ws + 0.18, tried: false };
+  Sfx.tone(330, 0.08, 'square', 0.06, -80);
+  syncHud();
+}
+function finishReload(perfect) {
+  const p = Game.player, i = p.weapon, w = WEAPONS[i];
+  const load = Math.min(w.mag - p.magAmmo[i], p.ammo[i]);
+  p.ammo[i] -= load; p.magAmmo[i] += load;
+  p.reload = null;
+  p.magBuff = !!perfect;
+  if (perfect) {
+    Sfx.part();
+    spawnFloater(p.x, p.y - 26, 'RECARGA PERFEITA! +20%', '#39ff14');
+  } else Sfx.pickup();
+  syncHud();
+}
+
 /* ════════════ INIMIGOS ════════════ */
-function difficultyMult() { return 1 + Game.partsCollected * 0.3 + (Game.shipRepaired ? 0.4 : 0); }
-function corruptionChance() { return Game.partsCollected >= 2 ? 0.12 + Game.partsCollected * 0.07 : 0; }
+function difficultyMult() {
+  return (1 + Game.partsCollected * 0.3 + (Game.shipRepaired ? 0.4 : 0)) * (1 + 0.6 * Game.ngPlus);
+}
+function corruptionChance() {
+  let c = Game.partsCollected >= 2 ? 0.12 + Game.partsCollected * 0.07 : 0;
+  if (Game.night) c += 0.12;
+  if (dailyMod('corrupt')) c += 0.2;
+  if (Game.ngPlus > 0) c += 0.1 * Game.ngPlus;
+  return c;
+}
 
 function spawnEnemy(type, x, y, corrupted) {
   const cfg = ENEMY_TYPES[type];
@@ -828,6 +1117,8 @@ function spawnEnemy(type, x, y, corrupted) {
     shotT: rand() * (cfg.shotCd || 2), spawnT: cfg.spawnCd || 0,
     chargeState: 0, chargeT: 0, cvx: 0, cvy: 0,
     strafeDir: rand() < 0.5 ? 1 : -1,
+    fuseT: -1, aimT: 0, aimAng: 0, healT: 1 + rand() * 2,
+    lastDashHit: -1,
     hitT: 0, contactT: 0, wob: rand() * TAU,
   });
 }
@@ -836,7 +1127,7 @@ function ambientSpawn(dt) {
   Game.spawnT -= dt;
   if (Game.spawnT > 0) return;
   const cap = 9 + Game.partsCollected * 4;
-  Game.spawnT = Math.max(0.9, 2.3 - Game.partsCollected * 0.28);
+  Game.spawnT = Math.max(0.9, 2.3 - Game.partsCollected * 0.28) * (Game.night ? 0.85 : 1);
   if (Game.enemies.length >= cap) return;
   const p = Game.player;
   // zona segura junto à nave (antes do reparo)
@@ -847,8 +1138,14 @@ function ambientSpawn(dt) {
   const roll = rand();
   let type = 'crawler';
   if (Game.partsCollected === 0) type = roll < 0.6 ? 'crawler' : roll < 0.85 ? 'spitter' : 'flyer';
-  else if (Game.partsCollected < 3) type = roll < 0.4 ? 'crawler' : roll < 0.6 ? 'spitter' : roll < 0.8 ? 'flyer' : 'charger';
-  else type = roll < 0.3 ? 'crawler' : roll < 0.5 ? 'spitter' : roll < 0.68 ? 'flyer' : roll < 0.88 ? 'charger' : 'brood';
+  else if (Game.partsCollected < 3)
+    type = roll < 0.32 ? 'crawler' : roll < 0.5 ? 'spitter' : roll < 0.66 ? 'flyer'
+         : roll < 0.8 ? 'charger' : roll < 0.92 ? 'bomber' : 'sniper';
+  else
+    type = roll < 0.24 ? 'crawler' : roll < 0.4 ? 'spitter' : roll < 0.54 ? 'flyer'
+         : roll < 0.68 ? 'charger' : roll < 0.78 ? 'bomber' : roll < 0.86 ? 'sniper'
+         : roll < 0.94 ? 'healer' : 'brood';
+  if (dailyMod('chargers') && rand() < 0.4) type = 'charger';
   spawnEnemy(type, x, y);
   // pacotes: crawlers vêm em grupo
   if (type === 'crawler' && rand() < 0.6) {
@@ -864,6 +1161,9 @@ function updateEnemy(e, dt) {
   e.hitT = Math.max(0, e.hitT - dt);
   e.contactT = Math.max(0, e.contactT - dt);
   const beh = ENEMY_TYPES[e.type].behavior;
+  // à noite a fauna fica mais agressiva
+  const baseSpeed = e.speed;
+  e.speed = baseSpeed * (Game.night ? 1.15 : 1) * (dailyMod('fast') ? 1.3 : 1);
 
   if (beh === 'chase') {
     e.x += dx / d * e.speed * dt;
@@ -916,13 +1216,76 @@ function updateEnemy(e, dt) {
         spawnEnemy('crawler', e.x + (rand() - 0.5) * 60, e.y + (rand() - 0.5) * 60, e.corrupted);
       spawnBurst(e.x, e.y, e.color, 8);
     }
+  } else if (beh === 'bomb') {
+    if (e.fuseT < 0) {                  // perseguindo
+      e.x += dx / d * e.speed * dt;
+      e.y += dy / d * e.speed * dt;
+      if (d < 75) { e.fuseT = 0.6; Sfx.tone(1200, 0.1, 'square', 0.1); }
+    } else {                            // pavio aceso
+      e.fuseT -= dt;
+      e.x += dx / d * e.speed * 0.4 * dt;
+      e.y += dy / d * e.speed * 0.4 * dt;
+      if (e.fuseT <= 0) {
+        e.fuseT = -1;
+        bomberExplode(e);
+        const idx = Game.enemies.indexOf(e);
+        if (idx >= 0) {
+          // explosão própria: sem combo nem loot extra
+          Game.enemies.splice(idx, 1);
+          e.speed = baseSpeed;
+          return;
+        }
+      }
+    }
+  } else if (beh === 'snipe') {
+    const cfg = ENEMY_TYPES[e.type];
+    if (e.aimT > 0) {                   // laser de mira travando
+      e.aimT -= dt;
+      // a mira persegue o jogador lentamente — dá pra esquivar
+      let want = Math.atan2(dy, dx), diff = want - e.aimAng;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      e.aimAng += diff * dt * 1.6;
+      if (e.aimT <= 0) {
+        e.shotT = 3;
+        fireEnemyBullet(e.x, e.y, e.aimAng, cfg.bSpeed, e.dmg, e.corrupted ? '#c44dff' : '#ff2e93');
+        Sfx.tone(950, 0.12, 'sawtooth', 0.12, -400);
+      }
+    } else {
+      if (d < 380) { e.x -= dx / d * e.speed * dt; e.y -= dy / d * e.speed * dt; }
+      else if (d > cfg.range) { e.x += dx / d * e.speed * dt; e.y += dy / d * e.speed * dt; }
+      e.shotT -= dt;
+      if (e.shotT <= 0 && d < cfg.range) {
+        e.aimT = 1.2;
+        e.aimAng = Math.atan2(dy, dx);
+        Sfx.tone(400, 0.3, 'sine', 0.06, 200);
+      }
+    }
+  } else if (beh === 'heal') {
+    // foge do jogador e regenera os aliados próximos
+    if (d < 260) { e.x -= dx / d * e.speed * dt; e.y -= dy / d * e.speed * dt; }
+    e.healT -= dt;
+    if (e.healT <= 0) {
+      e.healT = 2.5;
+      let healed = false;
+      for (const o of Game.enemies) {
+        if (o === e || o.hp >= o.maxHp) continue;
+        if (dist2(e.x, e.y, o.x, o.y) < 170 * 170) {
+          o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.15);
+          spawnParticle(o.x, o.y, '#5dffc3', 3, 0.4);
+          spawnFloater(o.x, o.y - o.r, '+', '#5dffc3');
+          healed = true;
+        }
+      }
+      if (healed) { spawnBurst(e.x, e.y, '#5dffc3', 6); Sfx.tone(660, 0.12, 'sine', 0.06, 120); }
+    }
   }
+  e.speed = baseSpeed;
 
   e.x = clamp(e.x, 20, WORLD.w - 20);
   e.y = clamp(e.y, 20, WORLD.h - 20);
 
-  // dano por contato
-  if (e.contactT <= 0 && d < e.r + p.r) {
+  // dano por contato (bomber não dá contato: ele detona)
+  if (beh !== 'bomb' && e.contactT <= 0 && d < e.r + p.r) {
     damagePlayer(e.dmg, e.x, e.y);
     e.contactT = 0.8;
   }
@@ -935,27 +1298,316 @@ function fireEnemyBullet(x, y, ang, speed, dmg, color) {
   });
 }
 
-function killEnemy(e, idx) {
+function killEnemy(e, idx, executed) {
   Game.enemies.splice(idx, 1);
   Game.kills++;
-  Game.score += e.score;
+  Game.combo++; Game.comboT = 3;
+  const mult = comboMult();
+  const gained = e.score * mult * (executed ? 2 : 1);
+  Game.score += gained;
+  Game.hitstop = Math.max(Game.hitstop, executed ? 0.07 : 0.035);
+  spawnFloater(e.x, e.y - e.r - 8, (executed ? 'EXECUTADO! +' : '+') + gained, executed ? '#ff5e9e' : '#ffd60a');
   spawnBurst(e.x, e.y, e.color, 14);
   Sfx.explode();
-  // drops
-  const n = 1 + (rand() * e.scrap | 0);
+  const p = Game.player;
+  if (p.cursed.sede) { p.hp = Math.min(pStat(p).maxHp, p.hp + 3); syncHpOnly(); }
+
+  // bomber morto perto de você ainda detona
+  if (e.type === 'bomber' && e.fuseT !== undefined && e.fuseT > 0) bomberExplode(e);
+
+  // loot — combo também multiplica sucata; tempestade dobra na zona
+  let lootMult = 1 + Math.min(2, Math.floor((mult - 1) / 2));
+  if (Game.event && Game.event.type === 'storm' &&
+      dist2(e.x, e.y, Game.event.x, Game.event.y) < Game.event.r * Game.event.r) lootMult *= 2;
+  if (executed) lootMult *= 2;
+  let n = (1 + (rand() * e.scrap | 0)) * lootMult;
+  if (dailyMod('scrap15')) n = Math.ceil(n * 1.5);
   for (let i = 0; i < n; i++) {
     Game.pickups.push({
       kind: 'scrap', x: e.x + (rand() - 0.5) * 26, y: e.y + (rand() - 0.5) * 26,
       val: 1, life: 18, ph: rand() * TAU,
     });
   }
+  if (e.corrupted && rand() < 0.65) {
+    Game.pickups.push({ kind: 'shard', x: e.x, y: e.y, val: 1, life: 20, ph: rand() * TAU });
+  }
   if (rand() < 0.07) Game.pickups.push({ kind: 'health', x: e.x, y: e.y, val: 25, life: 14, ph: 0 });
-  const p = Game.player;
   const ammoWeapons = [1, 2, 3].filter(i => p.owned[i]);
   if (ammoWeapons.length && rand() < 0.13) {
     const wi = ammoWeapons[(rand() * ammoWeapons.length) | 0];
-    Game.pickups.push({ kind: 'ammo', wi, x: e.x, y: e.y, val: Math.ceil(WEAPONS[wi].ammoPack / 2), life: 14, ph: 0 });
+    const val = Math.ceil(WEAPONS[wi].ammoPack / 2) * (dailyMod('ammo2') ? 2 : 1);
+    Game.pickups.push({ kind: 'ammo', wi, x: e.x, y: e.y, val, life: 14, ph: 0 });
   }
+  // matriarca do ninho desperto
+  if (e.elite) {
+    for (let k = 0; k < 3; k++)
+      Game.pickups.push({ kind: 'shard', x: e.x + (rand() - 0.5) * 50, y: e.y + (rand() - 0.5) * 50, val: 1, life: 30, ph: rand() * TAU });
+    for (let k = 0; k < 10; k++)
+      Game.pickups.push({ kind: 'scrap', x: e.x + (rand() - 0.5) * 70, y: e.y + (rand() - 0.5) * 70, val: 2, life: 30, ph: rand() * TAU });
+    showHint('MATRIARCA ELIMINADA — RECOMPENSA RARA!');
+    if (Game.event && Game.event.type === 'nest') endEvent();
+  }
+}
+
+function bomberExplode(e) {
+  spawnBurst(e.x, e.y, '#ff9100', 22);
+  Game.cam.shake = Math.max(Game.cam.shake, 9);
+  Sfx.explode();
+  const p = Game.player;
+  if (dist2(e.x, e.y, p.x, p.y) < 110 * 110) damagePlayer(e.dmg, e.x, e.y);
+}
+
+/* ════════════ FLOATERS (números de dano) ════════════ */
+function spawnFloater(x, y, txt, color) {
+  if (Game.floaters.length > 70) return;
+  Game.floaters.push({ x, y, txt: String(txt), color, t: 0.8, max: 0.8 });
+}
+
+/* ════════════ MELEE + EXECUÇÃO ════════════ */
+function tryMelee() {
+  const p = Game.player;
+  if (p.meleeCd > 0) return;
+  p.meleeCd = 0.9;
+  p.slashT = 0.15;
+  Sfx.noise(0.12, 0.15, 2500);
+  const st = pStat(p);
+  let hitAny = false;
+  for (let j = Game.enemies.length - 1; j >= 0; j--) {
+    const e = Game.enemies[j];
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d > 70 + e.r) continue;
+    let da = Math.atan2(e.y - p.y, e.x - p.x) - p.aim;
+    da = Math.atan2(Math.sin(da), Math.cos(da));
+    if (Math.abs(da) > 1.2) continue;
+    hitAny = true;
+    // execução: inimigo abaixo de 15% morre na hora com bônus
+    if (e.hp < e.maxHp * 0.15) { killEnemy(e, j, true); continue; }
+    const dmg = 35 * st.dmgMult;
+    e.hp -= dmg; e.hitT = 0.1;
+    Game.stats.dmg = (Game.stats.dmg || 0) + dmg;
+    spawnFloater(e.x, e.y - e.r, Math.round(dmg), '#ffffff');
+    const kd = d || 1;
+    e.x += (e.x - p.x) / kd * 55; e.y += (e.y - p.y) / kd * 55;
+    if (e.hp <= 0) killEnemy(e, j);
+  }
+  if (hitAny) { Sfx.hit(); Game.cam.shake = Math.max(Game.cam.shake, 4); }
+}
+
+/* ════════════ TIRO CARREGADO (botão direito) ════════════ */
+function releaseCharge() {
+  const p = Game.player;
+  if (p.chargeT >= 0.7) {
+    const st = pStat(p);
+    Game.bullets.push({
+      x: p.x + Math.cos(p.aim) * 22, y: p.y + Math.sin(p.aim) * 22,
+      vx: Math.cos(p.aim) * 820, vy: Math.sin(p.aim) * 820,
+      dmg: 45 * st.dmgMult, r: 8, color: '#ffffff',
+      life: 1.6, aoe: 0, pierce: 3, hitSet: new Set(),
+    });
+    Game.stats.shots = (Game.stats.shots || 0) + 1;
+    p.shootT = Math.max(p.shootT, 0.4);
+    Sfx.tone(900, 0.2, 'sawtooth', 0.14, -500);
+    Game.cam.shake = Math.max(Game.cam.shake, 6);
+    spawnBurst(p.x + Math.cos(p.aim) * 24, p.y + Math.sin(p.aim) * 24, '#ffffff', 8);
+  }
+  p.chargeT = 0;
+}
+
+/* ════════════ HABILIDADES DE GUARDIÃO (Q) ════════════ */
+function grantAbility(idx) {
+  Game.abilities[idx] = true;
+  Game.abilitySel = idx;
+  showHint('NOVA HABILIDADE: [Q] ' + ABILITIES[idx].name + ' — [TAB] TROCA');
+  syncAbilities();
+}
+function cycleAbility() {
+  const unlocked = [0, 1, 2, 3].filter(i => Game.abilities[i]);
+  if (!unlocked.length) return;
+  const cur = unlocked.indexOf(Game.abilitySel);
+  Game.abilitySel = unlocked[(cur + 1) % unlocked.length];
+  syncAbilities();
+  Sfx.tone(520, 0.05, 'square', 0.05);
+}
+function useAbility() {
+  const i = Game.abilitySel;
+  if (i < 0 || !Game.abilities[i] || Game.abilityCd[i] > 0) return;
+  const p = Game.player;
+  Game.abilityCd[i] = ABILITIES[i].cd;
+  if (i === 0) {            // Chamado do Enxame
+    for (let k = 0; k < 2; k++)
+      Game.allies.push({ x: p.x + (rand() - 0.5) * 40, y: p.y + (rand() - 0.5) * 40, hp: 60, r: 12, life: 12, hitT: 0, wob: rand() * TAU });
+    Sfx.tone(700, 0.15, 'sine', 0.1, 200);
+  } else if (i === 1) {     // Pele de Pedra
+    p.shieldT = 3;
+    Sfx.tone(180, 0.3, 'square', 0.12);
+  } else if (i === 2) {     // Salto Apex
+    spawnBurst(p.x, p.y, '#4aff9e', 10);
+    p.x = clamp(p.x + Math.cos(p.aim) * 200, p.r, WORLD.w - p.r);
+    p.y = clamp(p.y + Math.sin(p.aim) * 200, p.r, WORLD.h - p.r);
+    p.invulnT = Math.max(p.invulnT, 0.5);
+    spawnBurst(p.x, p.y, '#4aff9e', 10);
+    Sfx.dash();
+  } else {                  // Cuspe Ácido
+    const dd = Math.min(280, Math.hypot(Mouse.x - (p.x - Game.cam.x), Mouse.y - (p.y - Game.cam.y)));
+    Game.pools.push({
+      x: clamp(p.x + Math.cos(p.aim) * dd, 30, WORLD.w - 30),
+      y: clamp(p.y + Math.sin(p.aim) * dd, 30, WORLD.h - 30),
+      r: 10, maxR: 85, grow: true, life: 5, dmg: 20, warnT: 0, friendly: true,
+    });
+    Sfx.tone(240, 0.2, 'triangle', 0.1, -80);
+  }
+  syncAbilities();
+}
+function syncAbilities() {
+  const el = document.getElementById('hudAbilities');
+  el.innerHTML = [0, 1, 2, 3].filter(i => Game.abilities[i]).map(i => {
+    const cd = Game.abilityCd[i];
+    return `<div class="ab-slot${i === Game.abilitySel ? ' sel' : ''}">[Q] ${ABILITIES[i].name}<span class="ab-cd">${cd > 0 ? Math.ceil(cd) + 's' : 'PRONTO'}</span></div>`;
+  }).join('');
+}
+
+function updateAllies(dt) {
+  for (let i = Game.allies.length - 1; i >= 0; i--) {
+    const a = Game.allies[i];
+    a.life -= dt; a.hitT = Math.max(0, a.hitT - dt); a.wob += dt * 5;
+    if (a.life <= 0 || a.hp <= 0) { spawnBurst(a.x, a.y, '#00f5ff', 8); Game.allies.splice(i, 1); continue; }
+    let tgt = null, bd = 700 * 700;
+    for (const e of Game.enemies) {
+      const d = dist2(a.x, a.y, e.x, e.y);
+      if (d < bd) { bd = d; tgt = e; }
+    }
+    if (!tgt && Game.boss && dist2(a.x, a.y, Game.boss.x, Game.boss.y) < 900 * 900) tgt = Game.boss;
+    if (tgt) {
+      const dx = tgt.x - a.x, dy = tgt.y - a.y, d = Math.hypot(dx, dy) || 1;
+      a.x += dx / d * 190 * dt; a.y += dy / d * 190 * dt;
+      if (a.hitT <= 0 && d < tgt.r + a.r + 4) {
+        a.hitT = 0.5; tgt.hp -= 14;
+        Sfx.hit();
+        spawnFloater(tgt.x, tgt.y - tgt.r, '14', '#00f5ff');
+        if (tgt.hp <= 0) {
+          if (tgt === Game.boss) killBoss(tgt);
+          else { const idx = Game.enemies.indexOf(tgt); if (idx >= 0) killEnemy(tgt, idx); }
+        }
+      }
+    } else {
+      const p = Game.player;
+      const dx = p.x - a.x, dy = p.y - a.y, d = Math.hypot(dx, dy) || 1;
+      if (d > 90) { a.x += dx / d * 170 * dt; a.y += dy / d * 170 * dt; }
+    }
+  }
+}
+
+/* ════════════ EVENTOS DINÂMICOS ════════════ */
+function scheduleEvent() { Game.eventT = (dailyMod('events60') ? 55 : 80) + rand() * 30; }
+function spawnEvent() {
+  const p = Game.player;
+  const a = rand() * TAU, d = 700 + rand() * 400;
+  const x = clamp(p.x + Math.cos(a) * d, 250, WORLD.w - 250);
+  const y = clamp(p.y + Math.sin(a) * d, 250, WORLD.h - 250);
+  const roll = rand();
+  if (roll < 0.35) {
+    Game.event = { type: 'storm', x, y, r: 380, t: 32, spawnT: 0 };
+    showHint('⚠ TEMPESTADE DE GENESIS — LOOT EM DOBRO NA ZONA');
+  } else if (roll < 0.7) {
+    Game.event = { type: 'supply', x, y, t: 30, fallT: 3, waveT: 2 };
+    showHint('📦 CARGA DE SUPRIMENTOS CAINDO — CHEGUE ANTES DELES');
+  } else {
+    Game.event = { type: 'nest', x, y, t: 55 };
+    spawnEnemy('brood', x, y, true);
+    const e = Game.enemies[Game.enemies.length - 1];
+    e.elite = true; e.hp *= 3.2; e.maxHp = e.hp; e.r *= 1.5; e.spawnT = 2;
+    showHint('🕷 NINHO DESPERTO — ELIMINE A MATRIARCA (OPCIONAL)');
+  }
+  Sfx.tone(880, 0.25, 'sine', 0.12, -300);
+  setTimeout(() => Sfx.tone(880, 0.25, 'sine', 0.12, -300), 300);
+}
+function updateEvent(dt) {
+  const ev = Game.event, p = Game.player;
+  ev.t -= dt;
+  if (ev.type === 'storm') {
+    ev.spawnT -= dt;
+    if (ev.spawnT <= 0 && Game.enemies.length < 26) {
+      ev.spawnT = 1.1;
+      const a = rand() * TAU, dd = rand() * ev.r * 0.8;
+      spawnEnemy(['crawler', 'spitter', 'flyer'][rand() * 3 | 0], ev.x + Math.cos(a) * dd, ev.y + Math.sin(a) * dd, true);
+    }
+    if (ev.t <= 0) endEvent();
+  } else if (ev.type === 'supply') {
+    if (ev.fallT > 0) {
+      ev.fallT -= dt;
+      if (ev.fallT <= 0) { Game.cam.shake = Math.max(Game.cam.shake, 6); Sfx.explode(); spawnBurst(ev.x, ev.y, '#ffd60a', 20); }
+    } else {
+      ev.waveT -= dt;
+      if (ev.waveT <= 0 && Game.enemies.length < 24) {
+        ev.waveT = 4;
+        for (let k = 0; k < 2; k++) {
+          const a = rand() * TAU;
+          spawnEnemy(rand() < 0.6 ? 'crawler' : 'flyer', ev.x + Math.cos(a) * 400, ev.y + Math.sin(a) * 400);
+        }
+      }
+      if (dist2(p.x, p.y, ev.x, ev.y) < 42 * 42) {
+        p.scrap += 30; Game.scrapTotal += 30; Game.score += 150;
+        for (const i of [1, 2, 3]) if (p.owned[i]) p.ammo[i] += WEAPONS[i].ammoPack;
+        p.hp = Math.min(pStat(p).maxHp, p.hp + 25);
+        if (rand() < 0.5) { p.shards += 1; spawnFloater(p.x, p.y - 46, '+1 ◆', '#c44dff'); }
+        spawnFloater(p.x, p.y - 30, 'SUPRIMENTOS! +30 ⬡', '#ffd60a');
+        Sfx.part(); syncHud();
+        endEvent();
+        return;
+      }
+    }
+    if (ev.t <= 0) { showHint('A CARGA FOI DESTRUÍDA PELA FAUNA...'); endEvent(); }
+  } else if (ev.type === 'nest') {
+    if (ev.t <= 0) endEvent(); // a matriarca continua viva como inimigo comum
+  }
+}
+function endEvent() { Game.event = null; scheduleEvent(); }
+
+/* ════════════ LOGS DA CALIBURN ════════════ */
+function checkLogs() {
+  const p = Game.player;
+  for (const l of Game.logs) {
+    if (!l.read && dist2(p.x, p.y, l.x, l.y) < 38 * 38) { UI.openLog(l); break; }
+  }
+}
+
+/* ════════════ CORRUPÇÃO DO TERRENO ════════════ */
+function corruptTerrain(cx0, cy0) {
+  const t = terrainCtx;
+  if (!t) return;
+  const rng = mulberry32((cx0 * 7919 + cy0 * 104729) | 0);
+  t.save();
+  t.strokeStyle = 'rgba(150,40,220,0.55)';
+  t.shadowColor = '#9b30ff'; t.shadowBlur = 8;
+  for (let b = 0; b < 7; b++) {
+    let x = cx0, y = cy0, a = rng() * TAU;
+    for (let s = 0; s < 12; s++) {
+      const nx = x + Math.cos(a) * (30 + rng() * 50), ny = y + Math.sin(a) * (30 + rng() * 50);
+      t.lineWidth = Math.max(1, 5 * (1 - s / 12));
+      t.globalAlpha = 0.5 * (1 - s / 14);
+      t.beginPath(); t.moveTo(x, y); t.lineTo(nx, ny); t.stroke();
+      if (rng() < 0.3) {
+        t.fillStyle = 'rgba(170,60,255,0.4)';
+        t.beginPath(); t.arc(nx, ny, 3 + rng() * 5, 0, TAU); t.fill();
+      }
+      if (rng() < 0.25) {
+        const sa = a + (rng() - 0.5) * 1.6;
+        t.beginPath(); t.moveTo(nx, ny); t.lineTo(nx + Math.cos(sa) * 40, ny + Math.sin(sa) * 40); t.stroke();
+      }
+      x = nx; y = ny; a += (rng() - 0.5) * 0.9;
+    }
+  }
+  t.globalAlpha = 1; t.shadowBlur = 0;
+  t.restore();
+}
+
+/* ════════════ FALAS (Eco / guardiões) ════════════ */
+function showQuote(txt) {
+  const el = document.getElementById('quoteEl');
+  el.textContent = '— ' + txt;
+  el.style.opacity = '1';
+  clearTimeout(Game._quoteTo);
+  Game._quoteTo = setTimeout(() => { el.style.opacity = '0'; }, 3500);
 }
 
 /* ════════════ BOSSES ════════════ */
@@ -982,7 +1634,11 @@ function spawnBoss(idx) {
     state: 0, stT: 0, cvx: 0, cvy: 0,
     anchor: { x: cfg.x, y: cfg.y },
     tgx: cfg.x, tgy: cfg.y,
+    halfSaid: false,
   };
+  // a arena se fecha: barreira de Genesis ao redor do covil
+  Game.arena = { x: cfg.x, y: cfg.y, r: cfg.final ? 720 : 620 };
+  if (cfg.final) showQuote(ECO_QUOTES.spawn);
   document.getElementById('bossNameEl').textContent = cfg.name;
   document.getElementById('bossBarWrap').classList.add('visible');
   const pips = document.getElementById('bossPhasePips');
@@ -1003,6 +1659,11 @@ function updateBoss(b, dt) {
   const d = Math.hypot(dx, dy) || 1;
   const aimAng = Math.atan2(dy, dx);
   const enraged = b.hp < b.maxHp * 0.5;
+  // a 50% de HP, o que restou da tripulação fala
+  if (!b.halfSaid && enraged && b.idx < 4) {
+    b.halfSaid = true;
+    showQuote(BOSS_QUOTES[b.idx]);
+  }
 
   if (b.idx === 0) {           // RAINHA DO ENXAME
     // flutua ao redor da âncora
@@ -1109,6 +1770,7 @@ function updateBoss(b, dt) {
       radialBurst(b.x, b.y, 24, 260, 16, '#ff006e');
       Game.cam.shake = 16;
       Sfx.bossRoar();
+      showQuote(phase === 2 ? ECO_QUOTES.phase2 : ECO_QUOTES.phase3);
       document.querySelectorAll('#bossPhasePips .phase-pip').forEach((el, i) => el.classList.toggle('on', i < phase));
     }
     if (phase === 1) {
@@ -1190,24 +1852,32 @@ function updateBoss(b, dt) {
 
 function killBoss(b) {
   Game.boss = null;
+  Game.arena = null;
   Game.bossKills++;
   Game.score += 1000 + b.idx * 250;
+  Game.hitstop = Math.max(Game.hitstop, 0.12);
   document.getElementById('bossBarWrap').classList.remove('visible');
   spawnBurst(b.x, b.y, b.color, 50);
   spawnBurst(b.x, b.y, '#ffffff', 30);
   Game.cam.shake = 20;
   Sfx.explode();
   setTimeout(() => Sfx.explode(), 200);
+  // a morte do guardião corrompe o solo onde ele caiu
+  corruptTerrain(b.x, b.y);
   // drop generoso
   for (let i = 0; i < 14; i++)
     Game.pickups.push({ kind: 'scrap', x: b.x + (rand() - 0.5) * 90, y: b.y + (rand() - 0.5) * 90, val: 2, life: 30, ph: rand() * TAU });
+  for (let i = 0; i < 2; i++)
+    Game.pickups.push({ kind: 'shard', x: b.x + (rand() - 0.5) * 60, y: b.y + (rand() - 0.5) * 60, val: 1, life: 30, ph: rand() * TAU });
   Game.pickups.push({ kind: 'health', x: b.x, y: b.y, val: 50, life: 30, ph: 0 });
 
   if (b.final) {
+    showQuote(ECO_QUOTES.death);
     Game.canTakeOff = true;
     setObjective('VOLTE À NAVE E PRESSIONE [E] PARA DECOLAR');
     showHint('O ECO SE CALOU. HORA DE IR PARA CASA.');
   } else {
+    grantAbility(b.idx);
     const part = Game.parts[b.idx];
     part.bossDead = true; part.shielded = false;
     showHint('ESCUDO DO FRAGMENTO DESATIVADO — COLETE-O!');
@@ -1217,9 +1887,14 @@ function killBoss(b) {
 /* ════════════ DANO AO JOGADOR ════════════ */
 function damagePlayer(dmg, fromX, fromY) {
   const p = Game.player;
-  if (p.invulnT > 0 || p.dashT > 0) return;
+  if (p.invulnT > 0 || p.dashT > 0 || p.shieldT > 0) return;
   p.hp -= dmg;
   p.invulnT = 0.7;
+  Game.combo = 0; Game.comboT = 0;
+  if (p.cursed.reflexo) p.scrap = Math.max(0, p.scrap - 5);
+  // indicador de direção do dano
+  Game.dmgDirs.push({ ang: Math.atan2(fromY - p.y, fromX - p.x), t: 1 });
+  if (Game.dmgDirs.length > 6) Game.dmgDirs.shift();
   Game.cam.shake = Math.max(Game.cam.shake, 8);
   Sfx.hurt();
   const v = document.getElementById('dmgVignette');
@@ -1262,6 +1937,7 @@ function updatePickups(dt) {
       if (k.kind === 'scrap') { p.scrap += k.val; Game.scrapTotal += k.val; Game.score += k.val; }
       else if (k.kind === 'health') { p.hp = Math.min(st.maxHp, p.hp + k.val); }
       else if (k.kind === 'ammo') { p.ammo[k.wi] += k.val; }
+      else if (k.kind === 'shard') { p.shards += k.val; spawnFloater(p.x, p.y - 24, '+' + k.val + ' ◆', '#c44dff'); }
       Sfx.pickup();
       Game.pickups.splice(i, 1);
       syncHud();
@@ -1320,8 +1996,12 @@ function frame(now) {
   if (dt > 0.05) dt = 0.05;
 
   if (Game.state === 'cinematic') { updateCinematic(dt); renderCinematic(); return; }
-  if (Game.state === 'play') update(dt);
-  if (Game.state === 'play' || Game.state === 'shop' || Game.state === 'pause') render();
+  if (Game.state === 'play') {
+    // hit-stop: congela a simulação por alguns ms ao matar
+    if (Game.hitstop > 0) { Game.hitstop -= dt; render(); return; }
+    update(dt);
+  }
+  if (Game.state === 'play' || Game.state === 'shop' || Game.state === 'pause' || Game.state === 'log') render();
 }
 requestAnimationFrame(frame);
 
@@ -1349,11 +2029,58 @@ function update(dt) {
   const ml = Math.hypot(mx, my);
   if (ml > 0) { mx /= ml; my /= ml; }
   let spd = st.speed;
-  if (p.dashT > 0) { p.dashT -= dt; spd *= 3.1; if (ml === 0) { mx = Math.cos(p.aim); my = Math.sin(p.aim); } }
+  if (p.shieldT > 0) { p.shieldT -= dt; spd *= 0.7; }
+  if (p.dashT > 0) {
+    p.dashT -= dt; spd *= 3.1;
+    if (ml === 0) { mx = Math.cos(p.aim); my = Math.sin(p.aim); }
+    // afterimage
+    p.trail.push({ x: p.x, y: p.y, aim: p.aim, t: 0.25 });
+    if (p.trail.length > 14) p.trail.shift();
+    // rastro ardente (maldição)
+    if (p.cursed.rastro) {
+      p.fireT -= dt;
+      if (p.fireT <= 0) {
+        p.fireT = 0.035;
+        Game.pools.push({ x: p.x, y: p.y, r: 18, maxR: 18, grow: false, life: 1.1, dmg: 22, warnT: 0, friendly: true, fire: true });
+      }
+    }
+    // lâminas de dash
+    if (p.upg.blade > 0) {
+      for (let j = Game.enemies.length - 1; j >= 0; j--) {
+        const e = Game.enemies[j];
+        if (e.lastDashHit !== p.dashId && dist2(p.x, p.y, e.x, e.y) < (e.r + p.r + 6) ** 2) {
+          e.lastDashHit = p.dashId;
+          const dmg = 30 * p.upg.blade;
+          e.hp -= dmg; e.hitT = 0.1;
+          Game.stats.dmg = (Game.stats.dmg || 0) + dmg;
+          spawnFloater(e.x, e.y - e.r, Math.round(dmg), '#00f5ff');
+          Sfx.hit();
+          if (e.hp <= 0) killEnemy(e, j);
+        }
+      }
+    }
+  }
+  for (let i = p.trail.length - 1; i >= 0; i--) {
+    p.trail[i].t -= dt;
+    if (p.trail[i].t <= 0) p.trail.splice(i, 1);
+  }
   p.dashCd = Math.max(0, p.dashCd - dt);
   p.invulnT = Math.max(0, p.invulnT - dt);
+  p.meleeCd = Math.max(0, p.meleeCd - dt);
+  p.slashT = Math.max(0, p.slashT - dt);
+  const px0 = p.x, py0 = p.y;
   p.x = clamp(p.x + mx * spd * dt, p.r, WORLD.w - p.r);
   p.y = clamp(p.y + my * spd * dt, p.r, WORLD.h - p.r);
+  Game.stats.dist = (Game.stats.dist || 0) + Math.hypot(p.x - px0, p.y - py0);
+  // a barreira da arena prende o jogador durante a luta de boss
+  if (Game.arena) {
+    const ar = Game.arena;
+    const ad = Math.hypot(p.x - ar.x, p.y - ar.y);
+    if (ad > ar.r - p.r) {
+      p.x = ar.x + (p.x - ar.x) / ad * (ar.r - p.r);
+      p.y = ar.y + (p.y - ar.y) / ad * (ar.r - p.r);
+    }
+  }
   if (ml > 0) {
     p.walkT += dt;
     if (p.walkT > 0.22) { p.walkT = 0; spawnParticle(p.x, p.y + 8, 'rgba(180,120,90,0.5)', 2, 0.35); }
@@ -1369,6 +2096,63 @@ function update(dt) {
   p.aim = Math.atan2(Mouse.y - (p.y - Game.cam.y), Mouse.x - (p.x - Game.cam.x));
   p.shootT = Math.max(0, p.shootT - dt);
   if (Mouse.down) shoot();
+  // tiro carregado (botão direito segurado)
+  if (Mouse.rdown) p.chargeT += dt;
+  // recarga em andamento
+  if (p.reload) {
+    p.reload.t += dt;
+    if (p.reload.t >= p.reload.dur) finishReload(false);
+  }
+
+  // combo decai com o tempo
+  if (Game.comboT > 0) {
+    Game.comboT -= dt;
+    if (Game.comboT <= 0) Game.combo = 0;
+  }
+
+  // cooldown das habilidades de guardião
+  let cdTick = false;
+  for (let i = 0; i < 4; i++) {
+    if (Game.abilityCd[i] > 0) {
+      const before = Math.ceil(Game.abilityCd[i]);
+      Game.abilityCd[i] = Math.max(0, Game.abilityCd[i] - dt);
+      if (Math.ceil(Game.abilityCd[i]) !== before || Game.abilityCd[i] === 0) cdTick = true;
+    }
+  }
+  if (cdTick) syncAbilities();
+
+  // ciclo dia/noite (~4 min; noite = fauna agressiva e mais corrupção)
+  const ph = (Game.time % 240) / 240;
+  let dark = 0;
+  if (ph >= 0.5) dark = ph < 0.58 ? (ph - 0.5) / 0.08 : ph > 0.92 ? (1 - ph) / 0.08 : 1;
+  if (dailyMod('night')) dark = 1;
+  Game.darkness = dark * 0.78;
+  Game.night = dark > 0.5;
+
+  // eventos dinâmicos
+  if (!Game.event) {
+    Game.eventT -= dt;
+    if (Game.eventT <= 0 && !Game.boss && Game.bossIntroT <= 0) spawnEvent();
+  } else updateEvent(dt);
+
+  // aliados invocados
+  updateAllies(dt);
+
+  // números flutuantes
+  for (let i = Game.floaters.length - 1; i >= 0; i--) {
+    const f = Game.floaters[i];
+    f.t -= dt; f.y -= 42 * dt;
+    if (f.t <= 0) Game.floaters.splice(i, 1);
+  }
+
+  // indicadores de direção de dano
+  for (let i = Game.dmgDirs.length - 1; i >= 0; i--) {
+    Game.dmgDirs[i].t -= dt;
+    if (Game.dmgDirs[i].t <= 0) Game.dmgDirs.splice(i, 1);
+  }
+
+  // registros da Caliburn
+  checkLogs();
 
   // câmera
   Game.cam.x = clamp(p.x - canvas.width / 2, 0, WORLD.w - canvas.width);
@@ -1386,11 +2170,17 @@ function update(dt) {
     // inimigos
     for (let j = Game.enemies.length - 1; j >= 0; j--) {
       const e = Game.enemies[j];
+      if (b.hitSet && b.hitSet.has(e)) continue;
       if (dist2(b.x, b.y, e.x, e.y) < (e.r + b.r) * (e.r + b.r)) {
         e.hp -= b.dmg; e.hitT = 0.08;
+        Game.stats.hits = (Game.stats.hits || 0) + 1;
+        Game.stats.dmg = (Game.stats.dmg || 0) + b.dmg;
+        spawnFloater(b.x, b.y - 8, Math.round(b.dmg), '#ffe8a0');
         Sfx.hit();
         spawnParticle(b.x, b.y, b.color, 2, 0.2);
         if (e.hp <= 0) killEnemy(e, j);
+        // tiro perfurante atravessa o alvo
+        if (b.pierce > 0) { b.pierce--; if (b.hitSet) b.hitSet.add(e); continue; }
         hit = true;
         break;
       }
@@ -1400,6 +2190,9 @@ function update(dt) {
       const bo = Game.boss;
       if (dist2(b.x, b.y, bo.x, bo.y) < (bo.r + b.r) * (bo.r + b.r)) {
         bo.hp -= b.dmg;
+        Game.stats.hits = (Game.stats.hits || 0) + 1;
+        Game.stats.dmg = (Game.stats.dmg || 0) + b.dmg;
+        spawnFloater(b.x, b.y - 8, Math.round(b.dmg), '#ffe8a0');
         Sfx.hit();
         spawnParticle(b.x, b.y, b.color, 3, 0.25);
         if (bo.hp <= 0) killBoss(bo);
@@ -1439,14 +2232,29 @@ function update(dt) {
     }
   }
 
-  // poças de ácido
+  // poças (ácido inimigo, ácido aliado, fogo do rastro)
   for (let i = Game.pools.length - 1; i >= 0; i--) {
     const po = Game.pools[i];
     if (po.warnT > 0) { po.warnT -= dt; continue; }
     if (po.grow) { po.r = Math.min(po.maxR, po.r + 160 * dt); if (po.r >= po.maxR) po.grow = false; }
     po.life -= dt;
     if (po.life <= 0) { Game.pools.splice(i, 1); continue; }
-    if (dist2(po.x, po.y, p.x, p.y) < po.r * po.r) damagePlayer(po.dmg * dt * 3, po.x, po.y + 1);
+    if (po.friendly) {
+      for (let j = Game.enemies.length - 1; j >= 0; j--) {
+        const e = Game.enemies[j];
+        if (dist2(po.x, po.y, e.x, e.y) < (po.r + e.r) * (po.r + e.r)) {
+          const dd = po.dmg * dt * 3;
+          e.hp -= dd; Game.stats.dmg = (Game.stats.dmg || 0) + dd;
+          if (e.hp <= 0) killEnemy(e, j);
+        }
+      }
+      if (Game.boss && dist2(po.x, po.y, Game.boss.x, Game.boss.y) < (po.r + Game.boss.r) ** 2) {
+        Game.boss.hp -= po.dmg * dt * 1.5;
+        if (Game.boss.hp <= 0) killBoss(Game.boss);
+      }
+    } else if (dist2(po.x, po.y, p.x, p.y) < po.r * po.r) {
+      damagePlayer(po.dmg * dt * 3, po.x, po.y + 1);
+    }
   }
 
   // inimigos
@@ -1476,7 +2284,10 @@ function update(dt) {
   }
 
   // HUD dinâmico
-  document.getElementById('hudScore').textContent = 'SCORE ' + Game.score;
+  document.getElementById('hudScore').textContent =
+    'SCORE ' + Game.score + (Game.ngPlus ? ' · NG+' + Game.ngPlus : '') + (Game.night ? ' · ☾' : ' · ☀');
+  const comboEl = document.getElementById('hudCombo');
+  comboEl.textContent = Game.combo >= 4 ? `COMBO ×${comboMult()} (${Game.combo})` : '';
   const dashPct = pStat(p).dashCdMax > 0 ? 1 - p.dashCd / pStat(p).dashCdMax : 1;
   const blocks = Math.round(dashPct * 3);
   document.getElementById('hudDash').textContent = 'DASH ' + '▰'.repeat(blocks) + '▱'.repeat(3 - blocks);
@@ -1522,7 +2333,7 @@ function render() {
   }
   ctx.shadowBlur = 0;
 
-  // poças de ácido
+  // poças (cores por tipo: ácido inimigo, ácido aliado, fogo)
   for (const po of Game.pools) {
     if (po.warnT > 0) {
       ctx.strokeStyle = `rgba(184,255,0,${0.4 + 0.4 * Math.sin(tNow * 14)})`;
@@ -1530,14 +2341,24 @@ function render() {
       ctx.beginPath(); ctx.arc(po.x, po.y, po.maxR, 0, TAU); ctx.stroke();
       continue;
     }
-    ctx.fillStyle = 'rgba(150,220,20,0.3)';
-    ctx.strokeStyle = 'rgba(184,255,0,0.6)';
+    if (po.fire) {
+      ctx.fillStyle = `rgba(255,${100 + 60 * Math.sin(tNow * 12 + po.x)},20,0.35)`;
+      ctx.strokeStyle = 'rgba(255,145,0,0.6)';
+    } else if (po.friendly) {
+      ctx.fillStyle = 'rgba(20,220,160,0.3)';
+      ctx.strokeStyle = 'rgba(0,245,255,0.6)';
+    } else {
+      ctx.fillStyle = 'rgba(150,220,20,0.3)';
+      ctx.strokeStyle = 'rgba(184,255,0,0.6)';
+    }
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(po.x, po.y, po.r, 0, TAU); ctx.fill(); ctx.stroke();
   }
 
   drawShip(tNow);
   drawParts(tNow);
+  drawEvent(tNow);
+  drawLogs(tNow);
 
   // pickups
   for (const k of Game.pickups) {
@@ -1550,6 +2371,13 @@ function render() {
       ctx.fillStyle = '#39ff14'; ctx.shadowColor = '#39ff14'; ctx.shadowBlur = 10;
       ctx.fillRect(k.x - 7, k.y + bob - 2.5, 14, 5);
       ctx.fillRect(k.x - 2.5, k.y + bob - 7, 5, 14);
+    } else if (k.kind === 'shard') {
+      ctx.fillStyle = '#c44dff'; ctx.shadowColor = '#c44dff'; ctx.shadowBlur = 12;
+      ctx.save(); ctx.translate(k.x, k.y + bob); ctx.rotate(k.ph * 0.7);
+      ctx.beginPath();
+      ctx.moveTo(0, -7); ctx.lineTo(5, 0); ctx.lineTo(0, 7); ctx.lineTo(-5, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
     } else {
       ctx.fillStyle = WEAPONS[k.wi].color; ctx.shadowColor = WEAPONS[k.wi].color; ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(k.x, k.y + bob, 6, 0, TAU); ctx.fill();
@@ -1564,6 +2392,33 @@ function render() {
   // inimigos
   for (const e of Game.enemies) drawEnemy(e, tNow);
   if (Game.boss) drawBoss(Game.boss, tNow);
+  // arena do boss
+  if (Game.arena) {
+    const ar = Game.arena;
+    ctx.strokeStyle = `rgba(255,0,110,${0.35 + 0.2 * Math.sin(tNow * 4)})`;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([18, 12]);
+    ctx.beginPath(); ctx.arc(ar.x, ar.y, ar.r, tNow * 0.3, tNow * 0.3 + TAU); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // aliados invocados
+  for (const a of Game.allies) {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.wob);
+    ctx.shadowColor = '#00f5ff'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#7ef5ff';
+    ctx.strokeStyle = 'rgba(0,80,120,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(a.r, 0);
+    ctx.lineTo(-a.r * 0.7, a.r * 0.8);
+    ctx.lineTo(-a.r * 0.3, 0);
+    ctx.lineTo(-a.r * 0.7, -a.r * 0.8);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
 
   // balas
   for (const b of Game.bullets) {
@@ -1586,10 +2441,75 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
+  // números de dano flutuantes
+  ctx.font = '700 12px Orbitron';
+  ctx.textAlign = 'center';
+  for (const f of Game.floaters) {
+    ctx.globalAlpha = Math.max(0, f.t / f.max);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.txt, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+
+  // afterimages do dash
+  for (const tr of p.trail) {
+    ctx.save();
+    ctx.globalAlpha = tr.t / 0.25 * 0.45;
+    ctx.translate(tr.x, tr.y);
+    ctx.rotate(tr.aim + Math.PI / 2);
+    ctx.fillStyle = '#00f5ff';
+    ctx.beginPath();
+    ctx.moveTo(0, -15); ctx.lineTo(10, 6); ctx.lineTo(6, 13); ctx.lineTo(-6, 13); ctx.lineTo(-10, 6);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
   drawPlayer(p, tNow);
   drawObjectiveArrow(p);
 
   ctx.restore();
+
+  // ── noite: escuridão com luz ao redor do jogador ──
+  if (Game.darkness > 0.02) {
+    const px = p.x - cam.x + shx, py = p.y - cam.y + shy;
+    const ng = ctx.createRadialGradient(px, py, 90, px, py, 320);
+    ng.addColorStop(0, 'rgba(8,3,16,0)');
+    ng.addColorStop(0.7, `rgba(8,3,16,${Game.darkness * 0.65})`);
+    ng.addColorStop(1, `rgba(8,3,16,${Game.darkness})`);
+    ctx.fillStyle = ng;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ── indicadores de direção do dano ──
+  for (const dd of Game.dmgDirs) {
+    const cx2 = canvas.width / 2, cy2 = canvas.height / 2;
+    const ax = cx2 + Math.cos(dd.ang) * 130, ay = cy2 + Math.sin(dd.ang) * 130;
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(dd.ang);
+    ctx.globalAlpha = dd.t;
+    ctx.fillStyle = '#ff3040';
+    ctx.shadowColor = '#ff3040'; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(16, 0); ctx.lineTo(-6, 10); ctx.lineTo(-6, -10);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+  // ── aviso de HP crítico ──
+  const stHud = pStat(p);
+  if (p.hp > 0 && p.hp < stHud.maxHp * 0.2) {
+    const pulse = 0.18 + 0.14 * Math.sin(tNow * 7);
+    const cg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.35,
+                                        canvas.width / 2, canvas.height / 2, canvas.height * 0.75);
+    cg.addColorStop(0, 'rgba(255,20,20,0)');
+    cg.addColorStop(1, `rgba(255,20,20,${pulse})`);
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   // névoa de vinheta do mundo
   const vg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.45,
@@ -1630,9 +2550,71 @@ function drawPlayer(p, tNow) {
   ctx.shadowBlur = 0;
   ctx.fillStyle = WEAPONS[p.weapon].color;
   ctx.fillRect(3, -22, 5, 14);
+  // aura de corrupção: cresce com os pactos
+  const cor = corruptionLevel(p);
+  if (cor > 0) {
+    ctx.strokeStyle = `rgba(196,77,255,${0.12 * cor + 0.08 * Math.sin(tNow * 5)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 20 + cor * 2, 0, TAU); ctx.stroke();
+    if (cor >= 3 && rand() < 0.06) spawnParticle(p.x, p.y, '#c44dff', 2.5, 0.5);
+  }
   ctx.restore();
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
+
+  // escudo Pele de Pedra
+  if (p.shieldT > 0) {
+    ctx.strokeStyle = 'rgba(255,140,66,0.85)';
+    ctx.lineWidth = 4;
+    ctx.shadowColor = '#ff8c42'; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 26, 0, TAU); ctx.stroke();
+    ctx.fillStyle = '#ff8c42';
+    for (let i = 0; i < 5; i++) {
+      const a = i / 5 * TAU + tNow * 3;
+      ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * 30, p.y + Math.sin(a) * 30, 4, 0, TAU); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // arco do golpe melee
+  if (p.slashT > 0) {
+    ctx.strokeStyle = `rgba(255,255,255,${p.slashT / 0.15 * 0.85})`;
+    ctx.lineWidth = 5;
+    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 52, p.aim - 1.1, p.aim + 1.1);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // anel de carga do tiro carregado
+  if (p.chargeT > 0.1) {
+    const cf = clamp(p.chargeT / 0.7, 0, 1);
+    ctx.strokeStyle = cf >= 1 ? '#ffffff' : 'rgba(0,245,255,0.7)';
+    ctx.lineWidth = 3;
+    if (cf >= 1) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 14; }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 26, -Math.PI / 2, -Math.PI / 2 + TAU * cf);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // barra de recarga ativa
+  if (p.reload) {
+    const r = p.reload, f = clamp(r.t / r.dur, 0, 1);
+    const bw = 64, bx = p.x - bw / 2, by = p.y - 38;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(bx, by, bw, 8);
+    // janela perfeita
+    ctx.fillStyle = 'rgba(57,255,20,0.55)';
+    ctx.fillRect(bx + bw * r.ws, by, bw * (r.we - r.ws), 8);
+    // cursor
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(bx + bw * f - 1.5, by - 2, 3, 12);
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, bw, 8);
+  }
 }
 
 function drawShip(tNow) {
@@ -1711,6 +2693,79 @@ function drawParts(tNow) {
   }
 }
 
+function drawEvent(tNow) {
+  const ev = Game.event;
+  if (!ev) return;
+  if (ev.type === 'storm') {
+    ctx.save();
+    ctx.strokeStyle = `rgba(196,77,255,${0.4 + 0.25 * Math.sin(tNow * 3)})`;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([14, 10]);
+    ctx.beginPath(); ctx.arc(ev.x, ev.y, ev.r, tNow * 0.5, tNow * 0.5 + TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    // redemoinho interno
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeStyle = `rgba(150,40,220,${0.25 - i * 0.06})`;
+      ctx.beginPath();
+      ctx.arc(ev.x, ev.y, ev.r * (0.3 + i * 0.22), -tNow * (1 + i * 0.4), -tNow * (1 + i * 0.4) + TAU * 0.6);
+      ctx.stroke();
+    }
+    ctx.restore();
+    if (rand() < 0.3) spawnParticle(ev.x + (rand() - 0.5) * ev.r * 1.6, ev.y + (rand() - 0.5) * ev.r * 1.6, '#c44dff', 3, 0.5);
+  } else if (ev.type === 'supply') {
+    if (ev.fallT > 0) {
+      // caindo do céu
+      const fy = ev.y - ev.fallT * 260;
+      ctx.strokeStyle = 'rgba(255,214,10,0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(ev.x, fy - 60); ctx.lineTo(ev.x, fy); ctx.stroke();
+      ctx.fillStyle = '#ffd60a';
+      ctx.shadowColor = '#ffd60a'; ctx.shadowBlur = 14;
+      ctx.fillRect(ev.x - 10, fy - 10, 20, 20);
+      ctx.shadowBlur = 0;
+      // sombra crescendo no ponto de impacto
+      ctx.strokeStyle = `rgba(255,214,10,${0.5 + 0.3 * Math.sin(tNow * 10)})`;
+      ctx.beginPath(); ctx.arc(ev.x, ev.y, 26, 0, TAU); ctx.stroke();
+    } else {
+      const pulse = 0.7 + 0.3 * Math.sin(tNow * 5);
+      ctx.save();
+      ctx.translate(ev.x, ev.y);
+      ctx.shadowColor = '#ffd60a'; ctx.shadowBlur = 18 * pulse;
+      ctx.fillStyle = '#ffd60a';
+      ctx.strokeStyle = '#fff3b0'; ctx.lineWidth = 2;
+      ctx.fillRect(-13, -10, 26, 20); ctx.strokeRect(-13, -10, 26, 20);
+      ctx.fillStyle = '#0a0510';
+      ctx.fillRect(-13, -2, 26, 4);
+      ctx.restore();
+      ctx.shadowBlur = 0;
+    }
+  }
+  // ninho: a matriarca elite é desenhada como inimiga normal (maior e roxa)
+}
+
+function drawLogs(tNow) {
+  const cam = Game.cam;
+  for (const l of Game.logs) {
+    if (l.x < cam.x - 60 || l.x > cam.x + canvas.width + 60 || l.y < cam.y - 60 || l.y > cam.y + canvas.height + 60) continue;
+    ctx.save();
+    ctx.translate(l.x, l.y);
+    ctx.globalAlpha = l.read ? 0.35 : 1;
+    // terminal de dados da Caliburn
+    ctx.fillStyle = '#1a2a22';
+    ctx.strokeStyle = l.read ? 'rgba(57,255,20,0.3)' : '#39ff14';
+    ctx.lineWidth = 2;
+    ctx.fillRect(-9, -14, 18, 24); ctx.strokeRect(-9, -14, 18, 24);
+    if (!l.read) {
+      const blink = Math.sin(tNow * 5 + l.x) > 0;
+      ctx.fillStyle = blink ? '#39ff14' : '#0d4d12';
+      ctx.shadowColor = '#39ff14'; ctx.shadowBlur = blink ? 10 : 0;
+      ctx.fillRect(-5, -10, 10, 6);
+    }
+    ctx.restore();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  }
+}
+
 function drawEnemy(e, tNow) {
   ctx.save();
   ctx.translate(e.x, e.y);
@@ -1767,6 +2822,43 @@ function drawEnemy(e, tNow) {
       const a = i / 5 * TAU + tNow;
       ctx.beginPath(); ctx.arc(Math.cos(a) * e.r * 0.5, Math.sin(a) * e.r * 0.5, 3, 0, TAU); ctx.fill();
     }
+  } else if (e.type === 'bomber') {
+    // pavio aceso: pisca cada vez mais rápido
+    if (e.fuseT > 0 && Math.sin(tNow * (30 + (0.6 - e.fuseT) * 60)) > 0) {
+      ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 26;
+    }
+    const sq = 1 + Math.sin(e.wob * 2) * 0.12;
+    ctx.beginPath(); ctx.ellipse(0, 0, e.r * sq, e.r / sq, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    // espinhos
+    ctx.fillStyle = flash ? '#fff' : '#ffc46b';
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * TAU + tNow * 2;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * e.r * 0.95, Math.sin(a) * e.r * 0.95, 3, 0, TAU);
+      ctx.fill();
+    }
+  } else if (e.type === 'sniper') {
+    ctx.rotate(e.aimT > 0 ? e.aimAng : Math.atan2(Game.player.y - e.y, Game.player.x - e.x));
+    ctx.beginPath();
+    ctx.moveTo(e.r * 1.3, 0);
+    ctx.lineTo(-e.r * 0.5, e.r * 0.7);
+    ctx.lineTo(-e.r * 0.9, 0);
+    ctx.lineTo(-e.r * 0.5, -e.r * 0.7);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // canhão
+    ctx.fillStyle = flash ? '#fff' : 'rgba(0,0,0,0.5)';
+    ctx.fillRect(e.r * 0.3, -2.5, e.r * 1.1, 5);
+  } else if (e.type === 'healer') {
+    const sq = 1 + Math.sin(tNow * 2.6) * 0.1;
+    ctx.beginPath(); ctx.ellipse(0, 0, e.r * sq, e.r / sq, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    // cruz de cura
+    ctx.fillStyle = flash ? '#fff' : 'rgba(10,40,30,0.8)';
+    ctx.fillRect(-e.r * 0.5, -2.5, e.r, 5);
+    ctx.fillRect(-2.5, -e.r * 0.5, 5, e.r);
+    // anel de regeneração
+    ctx.strokeStyle = `rgba(93,255,195,${0.3 + 0.25 * Math.sin(tNow * 4)})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, e.r + 8 + Math.sin(tNow * 4) * 3, 0, TAU); ctx.stroke();
   }
   // aura de corrupção
   if (e.corrupted) {
@@ -1777,6 +2869,35 @@ function drawEnemy(e, tNow) {
   }
   ctx.restore();
   ctx.shadowBlur = 0;
+
+  // laser de mira do sniper
+  if (e.type === 'sniper' && e.aimT > 0) {
+    ctx.strokeStyle = `rgba(255,46,147,${0.25 + 0.45 * (1.2 - e.aimT)})`;
+    ctx.lineWidth = e.aimT < 0.3 ? 2.5 : 1;
+    ctx.beginPath();
+    ctx.moveTo(e.x, e.y);
+    ctx.lineTo(e.x + Math.cos(e.aimAng) * 800, e.y + Math.sin(e.aimAng) * 800);
+    ctx.stroke();
+  }
+
+  // olho que segue o jogador (vida no procedural)
+  {
+    const pl = Game.player;
+    const ea = Math.atan2(pl.y - e.y, pl.x - e.x);
+    const ex = e.x + Math.cos(ea) * e.r * 0.35, ey = e.y + Math.sin(ea) * e.r * 0.35;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(ex, ey, Math.max(2.5, e.r * 0.2), 0, TAU); ctx.fill();
+    ctx.fillStyle = '#15060f';
+    ctx.beginPath(); ctx.arc(ex + Math.cos(ea) * e.r * 0.07, ey + Math.sin(ea) * e.r * 0.07, Math.max(1.2, e.r * 0.09), 0, TAU); ctx.fill();
+  }
+
+  // brilho de execução: abaixo de 15% HP o golpe [F] finaliza
+  if (e.hp < e.maxHp * 0.15) {
+    ctx.strokeStyle = `rgba(255,255,255,${0.45 + 0.4 * Math.sin(tNow * 10)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 5, 0, TAU); ctx.stroke();
+  }
+
   // barra de vida
   if (e.hp < e.maxHp) {
     const w = e.r * 2;
@@ -1926,6 +3047,20 @@ function drawMinimap() {
     mmCtx.fillStyle = '#ff006e';
     mmCtx.beginPath(); mmCtx.arc(Game.boss.x * s, Game.boss.y * s, 4, 0, TAU); mmCtx.fill();
   }
+  // evento dinâmico (marcador pulsante)
+  if (Game.event) {
+    const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 150);
+    mmCtx.strokeStyle = `rgba(255,214,10,${pulse})`;
+    mmCtx.lineWidth = 1.5;
+    mmCtx.beginPath(); mmCtx.arc(Game.event.x * s, Game.event.y * s, 5, 0, TAU); mmCtx.stroke();
+    mmCtx.fillStyle = '#ffd60a';
+    mmCtx.fillRect(Game.event.x * s - 1.5, Game.event.y * s - 1.5, 3, 3);
+  }
+  // logs não lidos
+  mmCtx.fillStyle = 'rgba(57,255,20,0.7)';
+  for (const l of Game.logs) {
+    if (!l.read) mmCtx.fillRect(l.x * s - 1, l.y * s - 1, 2, 2);
+  }
   // inimigos próximos
   mmCtx.fillStyle = 'rgba(255,120,80,0.8)';
   for (const e of Game.enemies) mmCtx.fillRect(e.x * s - 1, e.y * s - 1, 2, 2);
@@ -2040,12 +3175,17 @@ function syncHud() {
   syncHpOnly();
   document.getElementById('hudScrap').textContent = '⬡ ' + p.scrap;
   document.getElementById('hudParts').textContent = 'FRAGMENTOS: ' + Game.partsCollected + '/4';
+  document.getElementById('hudShards').textContent = '◆ ' + p.shards;
   const wEl = document.getElementById('hudWeapons');
   wEl.innerHTML = WEAPONS.map((w, i) => {
     const locked = !p.owned[i];
-    const ammo = w.ammo === Infinity ? '∞' : p.ammo[i];
+    let ammo;
+    if (locked) ammo = 'BLOQUEADA';
+    else if (w.ammo === Infinity) ammo = '∞';
+    else if (p.reload && i === p.weapon) ammo = 'RECARREGANDO';
+    else ammo = `${p.magAmmo[i]} | ${p.ammo[i]}`;
     return `<div class="wpn-slot${i === p.weapon ? ' active' : ''}${locked ? ' locked' : ''}">
-      [${w.slot}] ${w.name}<span class="ammo">${locked ? 'BLOQUEADA' : ammo}</span></div>`;
+      [${w.slot}] ${w.name}<span class="ammo">${ammo}</span></div>`;
   }).join('');
 }
 
@@ -2053,11 +3193,59 @@ const UI = {
   storyPage: 0,
   startStory() {
     Sfx.init();
+    Game.daily = null;
     document.getElementById('titleScreen').classList.remove('active');
     this.storyPage = 0;
     this.renderStory();
     document.getElementById('storyScreen').classList.add('active');
     Game.state = 'story';
+  },
+  showDaily() {
+    Sfx.init();
+    const seed = parseInt(todayStr().replace(/-/g, ''), 10);
+    const rng = mulberry32(seed);
+    const pool = DAILY_MODS.slice();
+    const mods = [];
+    for (let k = 0; k < 2; k++) mods.push(pool.splice((rng() * pool.length) | 0, 1)[0]);
+    this._dailyMods = mods;
+    document.getElementById('dailyDate').textContent = todayStr();
+    document.getElementById('dailyMods').innerHTML = mods.map(m =>
+      `<div class="daily-mod"><div class="dm-name">${m.name}</div><div class="dm-desc">${m.desc}</div></div>`).join('');
+    const bl = document.getElementById('dailyBestLine');
+    bl.textContent = (SAVE.daily && SAVE.daily.date === todayStr())
+      ? 'SEU MELHOR DE HOJE: ' + SAVE.daily.score : 'VOCÊ AINDA NÃO JOGOU HOJE';
+    document.getElementById('titleScreen').classList.remove('active');
+    document.getElementById('dailyScreen').classList.add('active');
+  },
+  startDaily() {
+    document.getElementById('dailyScreen').classList.remove('active');
+    startRun();
+    Game.daily = { date: todayStr(), mods: this._dailyMods };
+  },
+  newGamePlus() {
+    document.getElementById('victoryScreen').classList.remove('active');
+    Game.daily = null;
+    startRun(true);
+  },
+  openLog(l) {
+    l.read = true;
+    Game.logsRead++;
+    Game.score += 50;
+    Game.state = 'log';
+    Mouse.down = false;
+    document.getElementById('logTitle').textContent = l.title;
+    document.getElementById('logText').textContent = l.text;
+    document.getElementById('logScreen').classList.add('active');
+    Sfx.tone(660, 0.12, 'sine', 0.08, 100);
+    if (Game.logsRead === LOGS.length) {
+      Game.score += 500;
+      setTimeout(() => showHint('TODOS OS REGISTROS DA CALIBURN RECUPERADOS! +500'), 400);
+    }
+  },
+  closeLog() {
+    document.getElementById('logScreen').classList.remove('active');
+    Game.state = 'play';
+    lastT = performance.now();
   },
   renderStory() {
     document.getElementById('storyText').innerHTML = STORY_PAGES[this.storyPage];
@@ -2134,10 +3322,44 @@ const UI = {
       return `<div class="shop-card">
         <div class="sc-name">${w.name} ✓</div>
         <div class="sc-desc">Recarga: +${w.ammoPack} de munição</div>
-        <div class="sc-lvl">MUNIÇÃO ATUAL: ${p.ammo[i]}</div>
+        <div class="sc-lvl">MUNIÇÃO ATUAL: ${p.magAmmo[i]} | ${p.ammo[i]}</div>
         <button onclick="UI.buyAmmo(${i})" ${p.scrap < w.ammoPrice ? 'disabled' : ''}>⬡ ${w.ammoPrice}</button>
       </div>`;
     }).join('');
+    // upgrades proibidos (pagos com estilhaços de Genesis)
+    const cor = corruptionLevel(p);
+    document.getElementById('cursedLabel').textContent =
+      `UPGRADES PROIBIDOS — ◆ ${p.shards} ESTILHAÇOS · CORRUPÇÃO ${cor}/5` +
+      (cor >= 3 ? ' — SEM VOLTA' : cor === 2 ? ' — CUIDADO' : '');
+    document.getElementById('shopCursed').innerHTML = CURSED_UPGRADES.map(u => {
+      const lvl = p.cursed[u.id];
+      const cost = u.cost * (lvl + 1);
+      const maxed = lvl >= u.max;
+      return `<div class="shop-card cursed">
+        <div class="sc-name">${u.name}</div>
+        <div class="sc-desc">${u.buff}</div>
+        <div class="sc-curse">⚠ ${u.curse}</div>
+        <div class="sc-lvl">NÍVEL ${lvl}/${u.max}</div>
+        <button onclick="UI.buyCursed('${u.id}')" ${maxed || p.shards < cost ? 'disabled' : ''}>
+          ${maxed ? 'MÁXIMO' : '◆ ' + cost}</button>
+      </div>`;
+    }).join('');
+  },
+  buyCursed(id) {
+    const p = Game.player;
+    const u = CURSED_UPGRADES.find(x => x.id === id);
+    const cost = u.cost * (p.cursed[id] + 1);
+    if (p.cursed[id] >= u.max || p.shards < cost) return;
+    p.shards -= cost;
+    p.cursed[id]++;
+    p.hp = Math.min(p.hp, pStat(p).maxHp);
+    const cor = corruptionLevel(p);
+    Sfx.bossRoar();
+    if (cor === 3) {
+      showQuote('SIM... ACEITE. NÓS ESTAMOS QUASE PRONTOS.');
+      showHint('CORRUPÇÃO 3/5 — A NAVE PODE REJEITAR VOCÊ...');
+    }
+    this.renderShop(); syncHud();
   },
   buyUpgrade(id) {
     const p = Game.player;
@@ -2155,7 +3377,8 @@ const UI = {
     if (p.owned[i] || p.scrap < w.price) return;
     p.scrap -= w.price;
     p.owned[i] = true;
-    p.ammo[i] = w.ammoPack * 2;
+    p.magAmmo[i] = w.mag;
+    p.ammo[i] = w.ammoPack * 2 - w.mag;
     p.weapon = i;
     Sfx.part();
     this.renderShop(); syncHud();
@@ -2177,18 +3400,29 @@ const UI = {
     lastT = performance.now();
   },
   toTitle() {
-    ['gameOverScreen', 'victoryScreen', 'pauseScreen', 'shopScreen', 'controlsScreen', 'storyScreen']
+    ['gameOverScreen', 'victoryScreen', 'pauseScreen', 'shopScreen', 'controlsScreen', 'storyScreen', 'logScreen', 'dailyScreen']
       .forEach(id => document.getElementById(id).classList.remove('active'));
     hideHud();
     Sfx.stopDrone();
     Game.state = 'title';
-    Game.boss = null;
+    Game.boss = null; Game.daily = null;
     document.getElementById('bossBarWrap').classList.remove('visible');
     renderTitleBg();
-    document.getElementById('titleBest').textContent = Game.best > 0 ? `MELHOR SCORE: ${Game.best}` : '';
+    refreshTitle();
     document.getElementById('titleScreen').classList.add('active');
   },
 };
+
+function refreshTitle() {
+  document.getElementById('titleBest').textContent = Game.best > 0 ? `MELHOR SCORE: ${Game.best}` : '';
+  document.getElementById('titleDaily').textContent =
+    (SAVE.daily && SAVE.daily.date === todayStr()) ? `DIÁRIO DE HOJE: ${SAVE.daily.score}` : '';
+  const en = SAVE.endings || {};
+  document.getElementById('titleEndings').textContent =
+    (en.good || en.dark)
+      ? `FINAIS: ${en.good ? '✦ PARA CASA' : '· · ·'} — ${en.dark ? '◆ O NOVO ECO' : '· · ·'}`
+      : '';
+}
 
 /* fundo animado simples da tela de título */
 function renderTitleBg() {
@@ -2231,7 +3465,7 @@ function renderTitleBg() {
 }
 
 /* ════════════ BOOT ════════════ */
-document.getElementById('titleBest').textContent = Game.best > 0 ? `MELHOR SCORE: ${Game.best}` : '';
+refreshTitle();
 document.getElementById('titleScreen').classList.add('active');
 renderTitleBg();
 </script>
