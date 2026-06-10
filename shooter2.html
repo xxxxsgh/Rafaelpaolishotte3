@@ -190,6 +190,21 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
 #logScreen h1 { color: var(--neon-green); text-shadow: 0 0 24px rgba(57,255,20,0.6); font-size: 18px; }
 #logText { font-size: 15px; line-height: 1.7; color: rgba(220,255,220,0.85); white-space: pre-line; }
 #dailyScreen h1 { color: var(--gold); text-shadow: 0 0 26px rgba(255,214,10,0.7); }
+#charScreen { width: min(680px, 95vw); }
+.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.char-card {
+  border: 1px solid rgba(255,255,255,0.18); padding: 14px;
+  background: rgba(255,255,255,0.03); cursor: pointer; text-align: left;
+  transition: all 0.15s;
+}
+.char-card:hover { background: rgba(0,245,255,0.07); transform: translateY(-2px); }
+.char-card .cc-name { font-family: 'Orbitron', monospace; font-size: 16px; letter-spacing: 2px; }
+.char-card .cc-title { font-size: 11px; letter-spacing: 3px; color: rgba(255,232,224,0.45); margin: 3px 0 8px; }
+.char-card .cc-desc { font-size: 13px; line-height: 1.5; color: rgba(255,232,224,0.7); }
+#npcScreen { border-color: rgba(74,215,255,0.4); }
+#npcScreen h1 { font-size: 18px; }
+#npcText { font-size: 16px; line-height: 1.7; color: rgba(224,247,250,0.9); min-height: 90px; font-style: italic; }
+#npcBtns button { margin-top: 8px; }
 .daily-mod {
   border: 1px solid rgba(255,214,10,0.3); padding: 10px 14px; margin-top: 8px;
   background: rgba(255,214,10,0.04);
@@ -320,10 +335,12 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
     <tr><td>CLIQUE / SEGURAR</td><td>Atirar</td></tr>
     <tr><td>ESPAÇO / SHIFT</td><td>Dash (esquiva com invencibilidade)</td></tr>
     <tr><td>1 · 2 · 3 · 4</td><td>Trocar de arma</td></tr>
+    <tr><td>BOTÃO DIREITO</td><td>Segurar: tiro carregado perfurante</td></tr>
+    <tr><td>F</td><td>Golpe corpo a corpo — executa inimigos fracos (brilhando)</td></tr>
     <tr><td>R</td><td>Recarregar — aperte de novo na zona verde: pente com +20% de dano</td></tr>
     <tr><td>Q</td><td>Habilidade de guardião (ganhe derrotando bosses)</td></tr>
     <tr><td>TAB</td><td>Trocar a habilidade selecionada</td></tr>
-    <tr><td>E</td><td>Interagir (nave / oficina)</td></tr>
+    <tr><td>E</td><td>Interagir (nave / oficina / NPCs)</td></tr>
     <tr><td>P / ESC</td><td>Pausar</td></tr>
     <tr><td>M</td><td>Som ligado/desligado</td></tr>
   </table>
@@ -378,6 +395,7 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
   <div class="obj-label">OBJETIVO</div>
   <div class="obj-text" id="objText">—</div>
   <div id="hudParts">FRAGMENTOS: 0/4</div>
+  <div id="objQuests" style="font-size:10px;color:#5dffc3;margin-top:4px;letter-spacing:1px;line-height:1.6;"></div>
 </div>
 <div class="hud-el" id="hudHp">
   <div class="bar-label">INTEGRIDADE DO TRAJE</div>
@@ -411,6 +429,20 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
   <button class="btn btn-green" onclick="UI.closeLog()">FECHAR [E]</button>
 </div>
 
+<!-- SELEÇÃO DE PERSONAGEM -->
+<div id="charScreen" class="overlay">
+  <h1 style="color:var(--cyan);text-shadow:0 0 26px rgba(0,245,255,0.7);">QUEM SOBREVIVEU À QUEDA?</h1>
+  <p style="font-size:13px;letter-spacing:1px;margin-bottom:14px;">Veteranos da guerra contra Genesis Omega. Cada um caiu em Vermilion do seu jeito.</p>
+  <div class="char-grid" id="charGrid"></div>
+</div>
+
+<!-- DIÁLOGO DE NPC -->
+<div id="npcScreen" class="overlay">
+  <h1 id="npcName">???</h1>
+  <div id="npcText"></div>
+  <div id="npcBtns"></div>
+</div>
+
 <!-- DESAFIO DIÁRIO -->
 <div id="dailyScreen" class="overlay">
   <h1>📅 DESAFIO DIÁRIO</h1>
@@ -434,7 +466,7 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
    ════════════════════════════════════════════════════════════════ */
 
 const TAU = Math.PI * 2;
-const WORLD = { w: 3600, h: 3600 };
+const WORLD = { w: 4800, h: 4800 };
 const SHIP_POS = { x: WORLD.w / 2, y: WORLD.h / 2 };
 const SAVE_KEY = 'rps2_save_v1';
 
@@ -555,15 +587,15 @@ const ECO_QUOTES = {
 };
 
 const LOGS = [
-  { x: 1800, y: 1150, title: 'LOG 1 — NAVE CALIBURN, DIA 1',     text: 'Expedição Caliburn, registro da capitã Veyra.\nA fenda nos cuspiu aqui como lixo. O planeta não consta em nenhuma carta. Batizei de Vermilion pelo céu — vermelho como aviso.\nSomos seis. A nave, como nós, está em pedaços.' },
-  { x: 1100, y: 1750, title: 'LOG 2 — BRAKK, ENGENHEIRO',        text: 'Quatro fragmentos vitais espalhados pelos extremos. Dá pra reparar, eu JURO que dá.\nEncontrei uns estilhaços roxos no rastro da queda. Vibram. Esquentam a mão.\nVou estudar um.' },
-  { x: 2500, y: 1850, title: 'LOG 3 — LYRA, BATEDORA',           text: 'Mapeei o leste. A fauna corre em círculos perfeitos, como se patrulhasse.\nSou mais rápida que tudo aqui. Por enquanto.\nOs estilhaços do Brakk sussurram à noite. Mandei ele jogar fora. Ele riu.' },
-  { x: 1850, y: 2500, title: 'LOG 4 — DRA. OSSE, BIÓLOGA',       text: 'As criaturas perto dos estilhaços estão... mudando. Maiores. Simétricas demais.\nIsso não é evolução, é ENGENHARIA. Algo nos estilhaços reescreve o que toca.\nBrakk não tira mais a luva da mão direita.' },
-  { x: 700,  y: 1850, title: 'LOG 5 — CAPITÃ VEYRA',             text: 'Confrontei o Brakk. A pele do braço dele parece basalto. Ele diz que está mais forte, que termina o reparo sozinho.\nOs sussurros têm uma voz agora.\nEla se chama GENESIS.' },
-  { x: 1750, y: 700,  title: 'LOG 6 — DRA. OSSE',                text: 'A rainha do ninho ao norte protege os ovos como se fossem da tripulação.\nHoje entendi por quê. Dentro da membrana de um deles... um uniforme da Caliburn.\nEles não viraram comida. Viraram FAMÍLIA.' },
-  { x: 2900, y: 1750, title: 'LOG 7 — VEYRA',                    text: 'A Lyra não voltou do leste.\nÀ noite, algo veloz demais circula o acampamento. Corre como ela corria. Onde aponto a lanterna, já não está.\nNão atirei. Ainda não consegui.' },
-  { x: 1850, y: 2900, title: 'LOG 8 — ÚLTIMO REGISTRO MÉDICO',   text: 'Brakk terminou de virar pedra no oeste. Parado. Esperando ordens de algo que não existe mais.\nO pântano engoliu a Osse — três cabeças saíram da água e uma delas USOU A VOZ DELA.\nSó restamos eu e o silêncio.' },
-  { x: 2400, y: 2350, title: 'LOG 9 — PARA QUEM CAIU DEPOIS',    text: 'Se você está lendo isto: a nave NÃO É o problema. Dá pra reparar. Eu vi.\nO problema é o preço.\nNão toque nos estilhaços roxos. Eles não te dão poder.\nEles te dão a ELE.\n— V.' },
+  { x: 2400, y: 1530, title: 'LOG 1 — NAVE CALIBURN, DIA 1',     text: 'Expedição Caliburn, registro da capitã Veyra.\nA fenda nos cuspiu aqui como lixo. O planeta não consta em nenhuma carta. Batizei de Vermilion pelo céu — vermelho como aviso.\nSomos seis. A nave, como nós, está em pedaços.' },
+  { x: 1470, y: 2330, title: 'LOG 2 — BRAKK, ENGENHEIRO',        text: 'Quatro fragmentos vitais espalhados pelos extremos. Dá pra reparar, eu JURO que dá.\nEncontrei uns estilhaços roxos no rastro da queda. Vibram. Esquentam a mão.\nVou estudar um.' },
+  { x: 3330, y: 2470, title: 'LOG 3 — LYRA, BATEDORA',           text: 'Mapeei o leste. A fauna corre em círculos perfeitos, como se patrulhasse.\nSou mais rápida que tudo aqui. Por enquanto.\nOs estilhaços do Brakk sussurram à noite. Mandei ele jogar fora. Ele riu.' },
+  { x: 2470, y: 3330, title: 'LOG 4 — DRA. OSSE, BIÓLOGA',       text: 'As criaturas perto dos estilhaços estão... mudando. Maiores. Simétricas demais.\nIsso não é evolução, é ENGENHARIA. Algo nos estilhaços reescreve o que toca.\nBrakk não tira mais a luva da mão direita.' },
+  { x: 930,  y: 2470, title: 'LOG 5 — CAPITÃ VEYRA',             text: 'Confrontei o Brakk. A pele do braço dele parece basalto. Ele diz que está mais forte, que termina o reparo sozinho.\nOs sussurros têm uma voz agora.\nEla se chama GENESIS.' },
+  { x: 2330, y: 930,  title: 'LOG 6 — DRA. OSSE',                text: 'A rainha do ninho ao norte protege os ovos como se fossem da tripulação.\nHoje entendi por quê. Dentro da membrana de um deles... um uniforme da Caliburn.\nEles não viraram comida. Viraram FAMÍLIA.' },
+  { x: 3870, y: 2330, title: 'LOG 7 — VEYRA',                    text: 'A Lyra não voltou do leste.\nÀ noite, algo veloz demais circula o acampamento. Corre como ela corria. Onde aponto a lanterna, já não está.\nNão atirei. Ainda não consegui.' },
+  { x: 2470, y: 3870, title: 'LOG 8 — ÚLTIMO REGISTRO MÉDICO',   text: 'Brakk terminou de virar pedra no oeste. Parado. Esperando ordens de algo que não existe mais.\nO pântano engoliu a Osse — três cabeças saíram da água e uma delas USOU A VOZ DELA.\nSó restamos eu e o silêncio.' },
+  { x: 3200, y: 3130, title: 'LOG 9 — PARA QUEM CAIU DEPOIS',    text: 'Se você está lendo isto: a nave NÃO É o problema. Dá pra reparar. Eu vi.\nO problema é o preço.\nNão toque nos estilhaços roxos. Eles não te dão poder.\nEles te dão a ELE.\n— V.' },
 ];
 
 const DAILY_MODS = [
@@ -607,11 +639,85 @@ const BOSS_QUOTES = [
 ];
 
 const BOSSES = [
-  { name: 'RAINHA DO ENXAME',  sub: 'Guardiã do Fragmento Norte',  hp: 950,  r: 46, color: '#d96bff', x: SHIP_POS.x, y: 380 },
-  { name: 'COLOSSO BASÁLTICO', sub: 'Sentinela Ancestral — Oeste', hp: 1500, r: 58, color: '#ff8c42', x: 380, y: SHIP_POS.y },
-  { name: 'APEX',              sub: 'Predador da Névoa — Leste',   hp: 1150, r: 38, color: '#4aff9e', x: WORLD.w - 380, y: SHIP_POS.y },
-  { name: 'HIDRA ÁCIDA',       sub: 'Terror do Pântano — Sul',     hp: 1700, r: 52, color: '#b8ff00', x: SHIP_POS.x, y: WORLD.h - 380 },
+  { name: 'RAINHA DO ENXAME',  sub: 'Guardiã do Fragmento Norte',  hp: 950,  r: 46, color: '#d96bff', x: SHIP_POS.x, y: 480 },
+  { name: 'COLOSSO BASÁLTICO', sub: 'Sentinela Ancestral — Oeste', hp: 1500, r: 58, color: '#ff8c42', x: 480, y: SHIP_POS.y },
+  { name: 'APEX',              sub: 'Predador da Névoa — Leste',   hp: 1150, r: 38, color: '#4aff9e', x: WORLD.w - 480, y: SHIP_POS.y },
+  { name: 'HIDRA ÁCIDA',       sub: 'Terror do Pântano — Sul',     hp: 1700, r: 52, color: '#b8ff00', x: SHIP_POS.x, y: WORLD.h - 480 },
   { name: 'ECO DE GENESIS',    sub: 'O que restou do Criador',     hp: 3400, r: 62, color: '#ff006e', x: SHIP_POS.x, y: SHIP_POS.y - 320, final: true, phases: 3 },
+  { name: 'VERME COLOSSAL',    sub: 'Horror Subterrâneo — Noroeste', hp: 2200, r: 50, color: '#ffae42', x: 1250, y: 1250, optional: true },
+];
+
+/* ── cidades em ruínas, NPCs e missões secundárias ── */
+const CITIES = [
+  { name: 'RUÍNAS DE KOROL',      x: 3450, y: 1350 },
+  { name: 'ASSENTAMENTO BRASA',   x: 1350, y: 3450 },
+];
+const WORM_LAIR = { x: 1250, y: 1250 };
+const FLOWER_SPOTS = [{ x: 3550, y: 3550 }, { x: 3300, y: 3720 }, { x: 3760, y: 3380 }];
+
+const NPCS = [
+  {
+    id: 'kael', name: 'KAEL — SOBREVIVENTE', color: '#4ad7ff',
+    x: SHIP_POS.x + 200, y: SHIP_POS.y + 90, questId: 'verme',
+    intro: [
+      'Outro que caiu do céu... Bem-vindo ao fim da linha, piloto.',
+      'Eu era carga viva da Caliburn. Fugi quando os outros começaram a MUDAR. Vivo aqui, na sombra da sua nave, desde então.',
+      'Tem um verme do tamanho de um prédio aninhado a NOROESTE. Ele engoliu meu kit de reparo... e meu braço.',
+    ],
+    offer: 'Mate o VERME COLOSSAL no covil a noroeste e te dou tudo que enterrei: 200 de sucata e 3 estilhaços.',
+    during: 'O covil fica a NOROESTE. Ele é invulnerável debaixo da terra — atire quando ele emergir.',
+    done: 'Você... matou aquilo?! Toma. Prometido é prometido. Os estilhaços, usa por sua conta e risco.',
+    after: 'Durma com um olho aberto, piloto. Eu durmo com os dois.',
+  },
+  {
+    id: 'vakk', name: 'VAKK — FERRALHEIRO DE KOROL', color: '#ffd60a',
+    x: 3450, y: 1310, questId: 'corrompidos',
+    intro: [
+      'Calma, calma! Sucata não atira. Eu sou Vakk. Eu TROCO coisas, não mordo.',
+      'Korol já foi uma cidade dos Antigos, antes do céu cuspir Genesis em nós. Agora é meu ferro-velho particular.',
+      'As criaturas roxas... corrompidas... estão espantando meus fornecedores. Quer dizer, meus ratos. Tanto faz.',
+    ],
+    offer: 'Extermine 8 CORROMPIDOS e eu abro meu cofre: 5 estilhaços de Genesis, limpinhos.',
+    during: 'As roxas, piloto! As ROXAS! Mais comuns à noite e nas tempestades.',
+    done: 'HÁ! Sabia que tinha visto cara de matador. O cofre é seu.',
+    after: 'Aparece depois. Vai que cai mais alguma coisa do céu.',
+  },
+  {
+    id: 'naya', name: 'NAYA — ERMITÃ DE BRASA', color: '#ff5e9e',
+    x: 1350, y: 3410, questId: 'flores',
+    intro: [
+      'Shh. Pisa devagar. O chão aqui ainda sonha.',
+      'Eu vim com a segunda expedição. A que ninguém registrou. Quando todos viraram pedra e dente, eu virei silêncio.',
+      'A sudeste cresce a única coisa que Genesis não consegue tocar: as FLORES DO VAZIO. Elas fecham feridas que não deviam fechar.',
+    ],
+    offer: 'Traga 3 FLORES DO VAZIO do campo a sudeste. Eu faço um tônico — cura completa e 150 de sucata pelo excedente.',
+    during: 'Sudeste, perto dos cristais gêmeos. Cuidado: a fauna também conhece o valor delas.',
+    done: 'Perfeitas... Beba. E o resto, vende. Eu não preciso de sucata. Preciso de silêncio.',
+    after: 'O planeta sussurra menos quando você está por perto. Curioso.',
+  },
+];
+
+const QUESTS = {
+  verme:       { label: 'CAÇADA: VERME COLOSSAL',   need: 1, reward(p) { p.scrap += 200; p.shards += 3; } },
+  corrompidos: { label: 'EXPURGO: CORROMPIDOS',     need: 8, reward(p) { p.shards += 5; } },
+  flores:      { label: 'COLHEITA: FLORES DO VAZIO', need: 3, reward(p) { p.scrap += 150; p.hp = pStat(p).maxHp; } },
+};
+
+const MINIBOSSES = [
+  { type: 'charger', name: 'ALFA DA MATILHA' },
+  { type: 'spitter', name: 'ANCIÃO CUSPIDOR' },
+];
+
+/* ── personagens jogáveis (veteranos do primeiro jogo) ── */
+const CHARACTERS = [
+  { id: 'marcelo', name: 'MARCELO', title: 'MESTRE DAS IAs', color: '#00f5ff',
+    desc: 'Começa com o CHAMADO DO ENXAME desbloqueado e seus aliados duram 18s' },
+  { id: 'felipe',  name: 'FELIPE',  title: 'O VELOZ',        color: '#39ff14',
+    desc: '+15% de velocidade e dash recarrega 25% mais rápido' },
+  { id: 'takeshi', name: 'TAKESHI', title: 'LÂMINA NINJA',   color: '#ff5e9e',
+    desc: 'Melee 2× mais forte com maior alcance; executa abaixo de 25% de HP' },
+  { id: 'titan',   name: 'TITAN',   title: 'O COLOSSO',      color: '#ffd60a',
+    desc: '+40 HP máximo e -15% de dano recebido, mas -10% de velocidade' },
 ];
 const PART_NAMES = ['NÚCLEO DE DOBRA', 'MOTOR ESTELAR', 'ESTABILIZADOR', 'NAVEGADOR QUÂNTICO'];
 
@@ -638,6 +744,7 @@ const Game = {
   night: false, darkness: 0,
   ngPlus: 0, daily: null,
   dmgDirs: [], arena: null,
+  npcs: [], quests: {}, miniT: 100, cityHints: {}, charId: 'marcelo',
   cam: { x: 0, y: 0, shake: 0 },
   score: 0, kills: 0, scrapTotal: 0, bossKills: 0,
   partsCollected: 0, shipRepaired: false, canTakeOff: false,
@@ -672,14 +779,15 @@ function newPlayer() {
   };
 }
 function pStat(p) {
-  const c = p.cursed;
-  let maxHp = 100 + p.upg.hp * 20 - c.pacto * 25;
+  const c = p.cursed, ch = p.char;
+  let maxHp = 100 + p.upg.hp * 20 - c.pacto * 25 + (ch === 'titan' ? 40 : 0);
   if (dailyMod('hp25')) maxHp -= 25;
   return {
     dmgMult: (1 + p.upg.dmg * 0.15 + c.pacto * 0.4) * (p.magBuff ? 1.2 : 1),
     maxHp: Math.max(25, maxHp),
-    speed: 250 * (1 + p.upg.spd * 0.08) * (c.reflexo ? 1.25 : 1),
-    dashCdMax: 1.6 * Math.pow(0.85, p.upg.dash) * (c.rastro ? 1.5 : 1),
+    speed: 250 * (1 + p.upg.spd * 0.08) * (c.reflexo ? 1.25 : 1)
+         * (ch === 'felipe' ? 1.15 : ch === 'titan' ? 0.9 : 1),
+    dashCdMax: 1.6 * Math.pow(0.85, p.upg.dash) * (c.rastro ? 1.5 : 1) * (ch === 'felipe' ? 0.75 : 1),
     magnet: 70 + p.upg.magnet * 60,
     regen: c.sede ? 0 : p.upg.regen,
     fireMult: c.reflexo ? 0.87 : 1,
@@ -713,6 +821,9 @@ addEventListener('keydown', e => {
     UI.closeShop();
   } else if (Game.state === 'log' && (e.code === 'KeyE' || e.code === 'Escape' || e.code === 'Enter')) {
     UI.closeLog();
+  } else if (Game.state === 'npc') {
+    if (e.code === 'KeyE' || e.code === 'Enter') UI.npcNext();
+    if (e.code === 'Escape') UI.closeNpc();
   }
 });
 addEventListener('keyup', e => { Keys[e.code] = false; });
@@ -749,7 +860,7 @@ function buildTerrain() {
   t.fillRect(0, 0, WORLD.w, WORLD.h);
 
   // manchas de solo
-  for (let i = 0; i < 260; i++) {
+  for (let i = 0; i < 420; i++) {
     const x = rng() * WORLD.w, y = rng() * WORLD.h, r = 80 + rng() * 260;
     const shades = ['#2b1320', '#1f0e1c', '#301722', '#271423', '#2e1219'];
     t.fillStyle = shades[(rng() * shades.length) | 0];
@@ -769,7 +880,7 @@ function buildTerrain() {
   }
 
   // crateras
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 100; i++) {
     const x = rng() * WORLD.w, y = rng() * WORLD.h, r = 22 + rng() * 70;
     t.strokeStyle = 'rgba(0,0,0,0.45)'; t.lineWidth = 5;
     t.fillStyle = 'rgba(0,0,0,0.3)';
@@ -779,7 +890,7 @@ function buildTerrain() {
   }
 
   // rochas
-  for (let i = 0; i < 220; i++) {
+  for (let i = 0; i < 380; i++) {
     const x = rng() * WORLD.w, y = rng() * WORLD.h, r = 6 + rng() * 22;
     t.fillStyle = `rgba(${60 + rng() * 40 | 0},${35 + rng() * 25 | 0},${50 + rng() * 30 | 0},0.9)`;
     t.beginPath();
@@ -795,7 +906,7 @@ function buildTerrain() {
   }
 
   // vegetação alienígena (tentáculos)
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < 420; i++) {
     const x = rng() * WORLD.w, y = rng() * WORLD.h;
     const h = 12 + rng() * 26, sway = (rng() - 0.5) * 14;
     t.strokeStyle = `rgba(${120 + rng() * 60 | 0},${30 + rng() * 30 | 0},${130 + rng() * 70 | 0},0.7)`;
@@ -805,6 +916,64 @@ function buildTerrain() {
     t.stroke();
     t.fillStyle = 'rgba(255,80,160,0.5)';
     t.beginPath(); t.arc(x + sway * 1.6, y - h, 3, 0, TAU); t.fill();
+  }
+
+  // ── cidades em ruínas dos Antigos ──
+  for (const city of CITIES) {
+    // praça central
+    t.fillStyle = 'rgba(40,32,44,0.9)';
+    t.beginPath(); t.arc(city.x, city.y, 90, 0, TAU); t.fill();
+    t.strokeStyle = 'rgba(120,110,130,0.5)'; t.lineWidth = 3;
+    t.beginPath(); t.arc(city.x, city.y, 90, 0, TAU); t.stroke();
+    // ruas em cruz
+    t.fillStyle = 'rgba(35,28,38,0.85)';
+    t.fillRect(city.x - 360, city.y - 22, 720, 44);
+    t.fillRect(city.x - 22, city.y - 360, 44, 720);
+    // prédios arruinados ao redor
+    for (let i = 0; i < 14; i++) {
+      const a = rng() * TAU, dd = 110 + rng() * 230;
+      const bx = city.x + Math.cos(a) * dd, by = city.y + Math.sin(a) * dd;
+      const bw = 40 + rng() * 70, bh = 40 + rng() * 70;
+      t.save();
+      t.translate(bx, by);
+      t.rotate((rng() - 0.5) * 0.4);
+      t.fillStyle = `rgba(${55 + rng() * 25 | 0},${48 + rng() * 20 | 0},${60 + rng() * 25 | 0},0.95)`;
+      t.strokeStyle = 'rgba(20,15,25,0.8)'; t.lineWidth = 3;
+      // parede desmoronada: polígono irregular
+      t.beginPath();
+      t.moveTo(-bw / 2, -bh / 2);
+      t.lineTo(bw / 2, -bh / 2 + rng() * 14);
+      t.lineTo(bw / 2 - rng() * 12, bh / 2);
+      t.lineTo(-bw / 2 + rng() * 10, bh / 2 - rng() * 10);
+      t.closePath(); t.fill(); t.stroke();
+      // janelas mortas
+      t.fillStyle = 'rgba(10,6,14,0.9)';
+      for (let w = 0; w < 4; w++) {
+        if (rng() < 0.7) t.fillRect(-bw / 2 + 8 + (w % 2) * (bw / 2 - 4), -bh / 2 + 8 + ((w / 2) | 0) * (bh / 2 - 4), 9, 11);
+      }
+      t.restore();
+    }
+    // entulho
+    for (let i = 0; i < 26; i++) {
+      const a = rng() * TAU, dd = rng() * 340;
+      t.fillStyle = 'rgba(90,80,100,0.5)';
+      t.fillRect(city.x + Math.cos(a) * dd, city.y + Math.sin(a) * dd, 3 + rng() * 6, 3 + rng() * 6);
+    }
+  }
+
+  // covil do verme: anel de terra revolvida a noroeste
+  t.strokeStyle = 'rgba(140,90,60,0.6)'; t.lineWidth = 10;
+  t.beginPath(); t.arc(WORM_LAIR.x, WORM_LAIR.y, 120, 0, TAU); t.stroke();
+  t.fillStyle = 'rgba(60,35,25,0.7)';
+  t.beginPath(); t.arc(WORM_LAIR.x, WORM_LAIR.y, 80, 0, TAU); t.fill();
+
+  // campo das flores do vazio (sudeste)
+  for (let i = 0; i < 60; i++) {
+    const fx = 3530 + (rng() - 0.5) * 560, fy = 3550 + (rng() - 0.5) * 560;
+    t.strokeStyle = 'rgba(120,200,160,0.5)'; t.lineWidth = 1.5;
+    t.beginPath(); t.moveTo(fx, fy); t.lineTo(fx + (rng() - 0.5) * 8, fy - 8 - rng() * 8); t.stroke();
+    t.fillStyle = `rgba(255,${150 + rng() * 60 | 0},220,0.7)`;
+    t.beginPath(); t.arc(fx + (rng() - 0.5) * 8, fy - 12, 2.5 + rng() * 2, 0, TAU); t.fill();
   }
 
   // marca da queda: rastro de impacto até a nave
@@ -822,7 +991,7 @@ function buildTerrain() {
 
   // cristais animados (desenhados ao vivo)
   glowDecos = [];
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 150; i++) {
     glowDecos.push({
       x: rng() * WORLD.w, y: rng() * WORLD.h,
       r: 5 + rng() * 12, hue: rng() < 0.5 ? 185 : 275,
@@ -861,6 +1030,14 @@ function startRun(keepBuild) {
   }));
   Game.logs = LOGS.map(l => Object.assign({ read: false }, l));
   Game.logsRead = 0;
+  Game.npcs = NPCS.map(n => Object.assign({ talked: false }, n));
+  Game.quests = { verme: { state: 'locked', progress: 0 }, corrompidos: { state: 'locked', progress: 0 }, flores: { state: 'locked', progress: 0 } };
+  Game.miniT = 100 + rand() * 40;
+  Game.cityHints = {};
+  // personagem escolhido
+  Game.player.char = Game.charId;
+  if (Game.charId === 'marcelo') { Game.abilities[0] = true; Game.abilitySel = 0; }
+  syncQuests();
   buildTerrain();
   // NG+: o planeta já acordou corrompido
   for (let n = 0; n < Game.ngPlus; n++) {
@@ -913,11 +1090,28 @@ function tryDash() {
 }
 function tryInteract() {
   const p = Game.player;
+  // NPCs têm prioridade
+  for (const n of Game.npcs) {
+    if (dist2(p.x, p.y, n.x, n.y) < 70 * 70) { UI.openNpc(n); return; }
+  }
   const nearShip = dist2(p.x, p.y, SHIP_POS.x, SHIP_POS.y) < 170 * 170;
   if (!nearShip) return;
   if (Game.canTakeOff) { winGame(); return; }
   if (Game.partsCollected >= 4 && !Game.shipRepaired) { repairShip(); return; }
   UI.openShop();
+}
+
+function syncQuests() {
+  const el = document.getElementById('objQuests');
+  const lines = [];
+  for (const id in Game.quests) {
+    const q = Game.quests[id];
+    if (q.state === 'active') {
+      const cfg = QUESTS[id];
+      lines.push(`▸ ${cfg.label} ${Math.min(q.progress, cfg.need)}/${cfg.need}` + (q.progress >= cfg.need ? ' ✓' : ''));
+    }
+  }
+  el.innerHTML = lines.join('<br>');
 }
 function repairShip() {
   Game.shipRepaired = true;
@@ -1312,6 +1506,16 @@ function killEnemy(e, idx, executed) {
   const p = Game.player;
   if (p.cursed.sede) { p.hp = Math.min(pStat(p).maxHp, p.hp + 3); syncHpOnly(); }
 
+  // missão do Vakk: expurgo de corrompidos
+  if (e.corrupted && Game.quests.corrompidos && Game.quests.corrompidos.state === 'active') {
+    const q = Game.quests.corrompidos;
+    if (q.progress < QUESTS.corrompidos.need) {
+      q.progress++;
+      syncQuests();
+      if (q.progress >= QUESTS.corrompidos.need) showHint('EXPURGO COMPLETO — VOLTE AO VAKK EM KOROL');
+    }
+  }
+
   // bomber morto perto de você ainda detona
   if (e.type === 'bomber' && e.fuseT !== undefined && e.fuseT > 0) bomberExplode(e);
 
@@ -1344,8 +1548,8 @@ function killEnemy(e, idx, executed) {
       Game.pickups.push({ kind: 'shard', x: e.x + (rand() - 0.5) * 50, y: e.y + (rand() - 0.5) * 50, val: 1, life: 30, ph: rand() * TAU });
     for (let k = 0; k < 10; k++)
       Game.pickups.push({ kind: 'scrap', x: e.x + (rand() - 0.5) * 70, y: e.y + (rand() - 0.5) * 70, val: 2, life: 30, ph: rand() * TAU });
-    showHint('MATRIARCA ELIMINADA — RECOMPENSA RARA!');
-    if (Game.event && Game.event.type === 'nest') endEvent();
+    showHint(e.eliteName ? e.eliteName + ' ELIMINADO — RECOMPENSA RARA!' : 'MATRIARCA ELIMINADA — RECOMPENSA RARA!');
+    if (e.nestElite && Game.event && Game.event.type === 'nest') endEvent();
   }
 }
 
@@ -1367,22 +1571,25 @@ function spawnFloater(x, y, txt, color) {
 function tryMelee() {
   const p = Game.player;
   if (p.meleeCd > 0) return;
-  p.meleeCd = 0.9;
+  const ninja = p.char === 'takeshi';
+  p.meleeCd = ninja ? 0.7 : 0.9;
   p.slashT = 0.15;
   Sfx.noise(0.12, 0.15, 2500);
   const st = pStat(p);
+  const reach = ninja ? 95 : 70;
+  const execTh = ninja ? 0.25 : 0.15;
   let hitAny = false;
   for (let j = Game.enemies.length - 1; j >= 0; j--) {
     const e = Game.enemies[j];
     const d = Math.hypot(e.x - p.x, e.y - p.y);
-    if (d > 70 + e.r) continue;
+    if (d > reach + e.r) continue;
     let da = Math.atan2(e.y - p.y, e.x - p.x) - p.aim;
     da = Math.atan2(Math.sin(da), Math.cos(da));
     if (Math.abs(da) > 1.2) continue;
     hitAny = true;
-    // execução: inimigo abaixo de 15% morre na hora com bônus
-    if (e.hp < e.maxHp * 0.15) { killEnemy(e, j, true); continue; }
-    const dmg = 35 * st.dmgMult;
+    // execução: inimigo fraco morre na hora com bônus
+    if (e.hp < e.maxHp * execTh) { killEnemy(e, j, true); continue; }
+    const dmg = (ninja ? 70 : 35) * st.dmgMult;
     e.hp -= dmg; e.hitT = 0.1;
     Game.stats.dmg = (Game.stats.dmg || 0) + dmg;
     spawnFloater(e.x, e.y - e.r, Math.round(dmg), '#ffffff');
@@ -1434,8 +1641,9 @@ function useAbility() {
   const p = Game.player;
   Game.abilityCd[i] = ABILITIES[i].cd;
   if (i === 0) {            // Chamado do Enxame
+    const life = p.char === 'marcelo' ? 18 : 12;
     for (let k = 0; k < 2; k++)
-      Game.allies.push({ x: p.x + (rand() - 0.5) * 40, y: p.y + (rand() - 0.5) * 40, hp: 60, r: 12, life: 12, hitT: 0, wob: rand() * TAU });
+      Game.allies.push({ x: p.x + (rand() - 0.5) * 40, y: p.y + (rand() - 0.5) * 40, hp: 60, r: 12, life, hitT: 0, wob: rand() * TAU });
     Sfx.tone(700, 0.15, 'sine', 0.1, 200);
   } else if (i === 1) {     // Pele de Pedra
     p.shieldT = 3;
@@ -1515,7 +1723,8 @@ function spawnEvent() {
     Game.event = { type: 'nest', x, y, t: 55 };
     spawnEnemy('brood', x, y, true);
     const e = Game.enemies[Game.enemies.length - 1];
-    e.elite = true; e.hp *= 3.2; e.maxHp = e.hp; e.r *= 1.5; e.spawnT = 2;
+    e.elite = true; e.nestElite = true; e.eliteName = 'MATRIARCA';
+    e.hp *= 3.2; e.maxHp = e.hp; e.r *= 1.5; e.spawnT = 2;
     showHint('🕷 NINHO DESPERTO — ELIMINE A MATRIARCA (OPCIONAL)');
   }
   Sfx.tone(880, 0.25, 'sine', 0.12, -300);
@@ -1763,6 +1972,48 @@ function updateBoss(b, dt) {
       b.atk2T = 4;
       radialBurst(b.x, b.y, enraged ? 14 : 9, 210, 15, '#b8ff00', b.t);
     }
+  } else if (b.idx === 5) {    // VERME COLOSSAL — ciclo de mergulho
+    // rastro de segmentos
+    b.segT = (b.segT || 0) - dt;
+    if (b.segT <= 0) {
+      b.segT = 0.05;
+      b.segs = b.segs || [];
+      b.segs.unshift({ x: b.x, y: b.y });
+      if (b.segs.length > 9) b.segs.pop();
+    }
+    if (b.state === 0) {               // enterrado: persegue, invulnerável
+      b.underground = true;
+      b.x += dx / d * 250 * dt;
+      b.y += dy / d * 250 * dt;
+      if (rand() < 0.6) spawnParticle(b.x + (rand() - 0.5) * 40, b.y + (rand() - 0.5) * 40, 'rgba(140,90,60,0.8)', 4, 0.4);
+      b.stT -= dt;
+      if ((b.stT <= 0 && d < 150) || b.stT <= -4) { b.state = 1; b.stT = 0.55; }
+    } else if (b.state === 1) {        // tremor antes de emergir
+      b.stT -= dt;
+      Game.cam.shake = Math.max(Game.cam.shake, 3);
+      if (b.stT <= 0) {
+        b.underground = false;
+        b.state = 2; b.stT = 3;
+        radialBurst(b.x, b.y, enraged ? 18 : 13, 270, 16, '#ffae42');
+        spawnBurst(b.x, b.y, 'rgba(140,90,60,1)', 20);
+        Game.cam.shake = 14;
+        Sfx.bossRoar();
+      }
+    } else {                           // na superfície: cospe leques
+      b.atkT -= dt;
+      if (b.atkT <= 0) {
+        b.atkT = enraged ? 0.8 : 1.2;
+        for (let i = -2; i <= 2; i++)
+          fireEnemyBullet(b.x, b.y, aimAng + i * 0.22, 300, 16, '#ffae42');
+        Sfx.tone(180, 0.15, 'square', 0.1);
+      }
+      b.stT -= dt;
+      if (b.stT <= 0) {
+        b.state = 0; b.stT = 2.5; b.underground = true;
+        spawnBurst(b.x, b.y, 'rgba(140,90,60,1)', 16);
+        Sfx.explode();
+      }
+    }
   } else if (b.idx === 4) {    // ECO DE GENESIS — 3 fases
     const phase = b.hp > b.maxHp * 0.66 ? 1 : b.hp > b.maxHp * 0.33 ? 2 : 3;
     if (phase !== b.phase) {
@@ -1843,8 +2094,8 @@ function updateBoss(b, dt) {
   b.x = clamp(b.x, 60, WORLD.w - 60);
   b.y = clamp(b.y, 60, WORLD.h - 60);
 
-  // contato
-  if (d < b.r + p.r) damagePlayer(22, b.x, b.y);
+  // contato (não machuca enquanto o verme está enterrado)
+  if (!b.underground && d < b.r + p.r) damagePlayer(22, b.x, b.y);
 
   // HUD
   document.getElementById('bossFill').style.width = (b.hp / b.maxHp * 100) + '%';
@@ -1876,6 +2127,16 @@ function killBoss(b) {
     Game.canTakeOff = true;
     setObjective('VOLTE À NAVE E PRESSIONE [E] PARA DECOLAR');
     showHint('O ECO SE CALOU. HORA DE IR PARA CASA.');
+  } else if (b.idx === 5) {
+    // verme colossal: completa a caçada do Kael
+    const q = Game.quests.verme;
+    if (q && q.state === 'active') {
+      q.progress = 1;
+      syncQuests();
+      showHint('VERME COLOSSAL ABATIDO — VOLTE AO KAEL NA NAVE');
+    }
+    for (let i = 0; i < 8; i++)
+      Game.pickups.push({ kind: 'scrap', x: b.x + (rand() - 0.5) * 100, y: b.y + (rand() - 0.5) * 100, val: 2, life: 30, ph: rand() * TAU });
   } else {
     grantAbility(b.idx);
     const part = Game.parts[b.idx];
@@ -1888,6 +2149,7 @@ function killBoss(b) {
 function damagePlayer(dmg, fromX, fromY) {
   const p = Game.player;
   if (p.invulnT > 0 || p.dashT > 0 || p.shieldT > 0) return;
+  if (p.char === 'titan') dmg *= 0.85;
   p.hp -= dmg;
   p.invulnT = 0.7;
   Game.combo = 0; Game.comboT = 0;
@@ -1938,6 +2200,15 @@ function updatePickups(dt) {
       else if (k.kind === 'health') { p.hp = Math.min(st.maxHp, p.hp + k.val); }
       else if (k.kind === 'ammo') { p.ammo[k.wi] += k.val; }
       else if (k.kind === 'shard') { p.shards += k.val; spawnFloater(p.x, p.y - 24, '+' + k.val + ' ◆', '#c44dff'); }
+      else if (k.kind === 'flower') {
+        const q = Game.quests.flores;
+        if (q && q.state === 'active') {
+          q.progress++;
+          spawnFloater(p.x, p.y - 24, 'FLOR DO VAZIO ' + q.progress + '/3', '#ff9ee0');
+          syncQuests();
+          if (q.progress >= 3) showHint('FLORES COLETADAS — VOLTE À NAYA EM BRASA');
+        }
+      }
       Sfx.pickup();
       Game.pickups.splice(i, 1);
       syncHud();
@@ -2001,7 +2272,7 @@ function frame(now) {
     if (Game.hitstop > 0) { Game.hitstop -= dt; render(); return; }
     update(dt);
   }
-  if (Game.state === 'play' || Game.state === 'shop' || Game.state === 'pause' || Game.state === 'log') render();
+  if (['play', 'shop', 'pause', 'log', 'npc'].includes(Game.state)) render();
 }
 requestAnimationFrame(frame);
 
@@ -2154,6 +2425,42 @@ function update(dt) {
   // registros da Caliburn
   checkLogs();
 
+  // covil do verme colossal (missão do Kael)
+  if (Game.quests.verme && Game.quests.verme.state === 'active' && Game.quests.verme.progress < 1 &&
+      !Game.boss && Game.bossIntroT <= 0 &&
+      dist2(p.x, p.y, WORM_LAIR.x, WORM_LAIR.y) < 560 * 560) {
+    triggerBoss(5);
+  }
+
+  // mini-chefes nômades
+  Game.miniT -= dt;
+  if (Game.miniT <= 0) {
+    Game.miniT = 110 + rand() * 50;
+    if (Game.partsCollected >= 1 && !Game.boss && Game.bossIntroT <= 0 &&
+        !Game.enemies.some(e => e.eliteName)) {
+      const mb = MINIBOSSES[(rand() * MINIBOSSES.length) | 0];
+      const a = rand() * TAU;
+      const mx2 = clamp(p.x + Math.cos(a) * 820, 60, WORLD.w - 60);
+      const my2 = clamp(p.y + Math.sin(a) * 820, 60, WORLD.h - 60);
+      spawnEnemy(mb.type, mx2, my2, true);
+      const e = Game.enemies[Game.enemies.length - 1];
+      e.elite = true; e.eliteName = mb.name;
+      e.hp *= 4; e.maxHp = e.hp; e.r *= 1.6; e.dmg *= 1.3;
+      e.scrap *= 4; e.score *= 5;
+      showHint('⚠ MINI-CHEFE À ESPREITA: ' + mb.name);
+      Sfx.bossRoar();
+    }
+  }
+
+  // aviso ao entrar numa cidade
+  for (const c of CITIES) {
+    if (!Game.cityHints[c.name] && dist2(p.x, p.y, c.x, c.y) < 430 * 430) {
+      Game.cityHints[c.name] = true;
+      showHint('VOCÊ CHEGOU: ' + c.name);
+      Sfx.tone(523, 0.15, 'sine', 0.1); setTimeout(() => Sfx.tone(659, 0.2, 'sine', 0.1), 160);
+    }
+  }
+
   // câmera
   Game.cam.x = clamp(p.x - canvas.width / 2, 0, WORLD.w - canvas.width);
   Game.cam.y = clamp(p.y - canvas.height / 2, 0, WORLD.h - canvas.height);
@@ -2185,8 +2492,8 @@ function update(dt) {
         break;
       }
     }
-    // boss
-    if (!hit && Game.boss) {
+    // boss (invulnerável enquanto enterrado)
+    if (!hit && Game.boss && !Game.boss.underground) {
       const bo = Game.boss;
       if (dist2(b.x, b.y, bo.x, bo.y) < (bo.r + b.r) * (bo.r + b.r)) {
         bo.hp -= b.dmg;
@@ -2359,6 +2666,7 @@ function render() {
   drawParts(tNow);
   drawEvent(tNow);
   drawLogs(tNow);
+  drawNPCs(tNow);
 
   // pickups
   for (const k of Game.pickups) {
@@ -2371,6 +2679,16 @@ function render() {
       ctx.fillStyle = '#39ff14'; ctx.shadowColor = '#39ff14'; ctx.shadowBlur = 10;
       ctx.fillRect(k.x - 7, k.y + bob - 2.5, 14, 5);
       ctx.fillRect(k.x - 2.5, k.y + bob - 7, 5, 14);
+    } else if (k.kind === 'flower') {
+      ctx.strokeStyle = 'rgba(120,200,160,0.8)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(k.x, k.y + bob + 8); ctx.lineTo(k.x, k.y + bob - 4); ctx.stroke();
+      ctx.fillStyle = '#ff9ee0'; ctx.shadowColor = '#ff9ee0'; ctx.shadowBlur = 14;
+      for (let pt = 0; pt < 5; pt++) {
+        const a = pt / 5 * TAU + k.ph * 0.3;
+        ctx.beginPath(); ctx.arc(k.x + Math.cos(a) * 5, k.y + bob - 6 + Math.sin(a) * 5, 3.5, 0, TAU); ctx.fill();
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(k.x, k.y + bob - 6, 2.5, 0, TAU); ctx.fill();
     } else if (k.kind === 'shard') {
       ctx.fillStyle = '#c44dff'; ctx.shadowColor = '#c44dff'; ctx.shadowBlur = 12;
       ctx.save(); ctx.translate(k.x, k.y + bob); ctx.rotate(k.ph * 0.7);
@@ -2542,9 +2860,11 @@ function drawPlayer(p, tNow) {
   ctx.lineTo(-10, 6);
   ctx.closePath();
   ctx.fill(); ctx.stroke();
-  // visor
-  ctx.fillStyle = '#00f5ff';
-  ctx.shadowColor = '#00f5ff'; ctx.shadowBlur = 8;
+  // visor (cor do personagem)
+  const chr = CHARACTERS.find(c => c.id === p.char);
+  const visor = chr ? chr.color : '#00f5ff';
+  ctx.fillStyle = visor;
+  ctx.shadowColor = visor; ctx.shadowBlur = 8;
   ctx.beginPath(); ctx.arc(0, -5, 4.5, 0, TAU); ctx.fill();
   // arma
   ctx.shadowBlur = 0;
@@ -2906,6 +3226,70 @@ function drawEnemy(e, tNow) {
     ctx.fillStyle = e.corrupted ? '#c44dff' : '#39ff14';
     ctx.fillRect(e.x - w / 2, e.y - e.r - 10, w * clamp(e.hp / e.maxHp, 0, 1), 4);
   }
+  // nome do mini-chefe
+  if (e.eliteName) {
+    ctx.font = '700 11px Orbitron';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff9c40';
+    ctx.shadowColor = '#ff9c40'; ctx.shadowBlur = 8;
+    ctx.fillText(e.eliteName, e.x, e.y - e.r - 16);
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawNPCs(tNow) {
+  const p = Game.player;
+  for (const n of Game.npcs) {
+    if (n.x < Game.cam.x - 80 || n.x > Game.cam.x + canvas.width + 80 ||
+        n.y < Game.cam.y - 80 || n.y > Game.cam.y + canvas.height + 80) continue;
+    const bob = Math.sin(tNow * 2 + n.x) * 2;
+    ctx.save();
+    ctx.translate(n.x, n.y + bob);
+    // corpo do traje
+    ctx.fillStyle = '#9aa8b5';
+    ctx.strokeStyle = n.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -14); ctx.lineTo(9, 2); ctx.lineTo(6, 14); ctx.lineTo(-6, 14); ctx.lineTo(-9, 2);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // visor (olha para o jogador quando perto)
+    const looking = dist2(p.x, p.y, n.x, n.y) < 400 * 400;
+    const la = looking ? Math.atan2(p.y - n.y, p.x - n.x) : tNow * 0.5;
+    ctx.fillStyle = n.color;
+    ctx.shadowColor = n.color; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(Math.cos(la) * 3, -7 + Math.sin(la) * 2, 4, 0, TAU); ctx.fill();
+    ctx.restore();
+    ctx.shadowBlur = 0;
+    // nome
+    ctx.font = '700 9px Orbitron';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = n.color;
+    ctx.fillText(n.name.split(' — ')[0], n.x, n.y - 24);
+    // indicador de missão
+    const q = n.questId ? Game.quests[n.questId] : null;
+    if (q) {
+      let mark = null;
+      if (q.state === 'locked') mark = '!';
+      else if (q.state === 'active' && q.progress >= QUESTS[n.questId].need) mark = '★';
+      else if (q.state === 'active') mark = '…';
+      if (mark) {
+        const mp = 0.7 + 0.3 * Math.sin(tNow * 4);
+        ctx.font = '900 16px Orbitron';
+        ctx.fillStyle = mark === '…' ? 'rgba(255,255,255,0.4)' : `rgba(255,214,10,${mp})`;
+        ctx.shadowColor = '#ffd60a'; ctx.shadowBlur = mark === '…' ? 0 : 10;
+        ctx.fillText(mark, n.x, n.y - 38);
+        ctx.shadowBlur = 0;
+      }
+    }
+    // prompt de interação
+    if (dist2(p.x, p.y, n.x, n.y) < 70 * 70) {
+      ctx.font = '700 10px Orbitron';
+      ctx.fillStyle = '#39ff14';
+      ctx.fillText('[E] CONVERSAR', n.x, n.y + 32);
+    }
+    ctx.textAlign = 'left';
+  }
 }
 
 function drawBoss(b, tNow) {
@@ -2967,7 +3351,58 @@ function drawBoss(b, tNow) {
       ctx.fillStyle = '#1a2a00';
       ctx.beginPath(); ctx.arc(hx, hy, 5, 0, TAU); ctx.fill();
     }
-  } else {                     // ECO DE GENESIS: núcleo + anéis
+  } else if (b.idx === 5) {    // VERME COLOSSAL
+    if (b.underground) {
+      // montículo de terra se movendo
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(110,70,45,0.9)';
+      ctx.beginPath(); ctx.ellipse(0, 0, b.r * 1.1, b.r * 0.65, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(60,35,25,0.9)'; ctx.lineWidth = 3;
+      for (let i = 0; i < 4; i++) {
+        const a = i / 4 * TAU + tNow * 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * b.r * 0.3, Math.sin(a) * b.r * 0.2);
+        ctx.lineTo(Math.cos(a) * b.r, Math.sin(a) * b.r * 0.6);
+        ctx.stroke();
+      }
+      if (b.state === 1) {
+        // prestes a emergir
+        ctx.strokeStyle = `rgba(255,174,66,${0.4 + 0.5 * Math.sin(tNow * 20)})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0, 0, b.r * 1.4, 0, TAU); ctx.stroke();
+      }
+    } else {
+      // segmentos do corpo (rastro)
+      if (b.segs) {
+        for (let i = b.segs.length - 1; i >= 1; i--) {
+          const s = b.segs[i];
+          const sr = b.r * (1 - i / b.segs.length * 0.65);
+          ctx.fillStyle = i % 2 ? '#c47f35' : '#a86a2a';
+          ctx.beginPath(); ctx.arc(s.x - b.x, s.y - b.y, sr, 0, TAU); ctx.fill();
+        }
+      }
+      // cabeça
+      ctx.fillStyle = b.color;
+      ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill(); ctx.stroke();
+      // mandíbulas
+      const ja = Math.atan2(Game.player.y - b.y, Game.player.x - b.x);
+      const jaw = 0.5 + Math.sin(tNow * 6) * 0.25;
+      ctx.fillStyle = '#5e3a14';
+      for (const sgn of [-1, 1]) {
+        ctx.save();
+        ctx.rotate(ja + sgn * jaw);
+        ctx.beginPath();
+        ctx.moveTo(b.r * 0.5, 0);
+        ctx.lineTo(b.r * 1.45, sgn * b.r * 0.25);
+        ctx.lineTo(b.r * 0.8, sgn * b.r * 0.45);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      // boca-núcleo
+      ctx.fillStyle = '#2a1505';
+      ctx.beginPath(); ctx.arc(Math.cos(ja) * b.r * 0.4, Math.sin(ja) * b.r * 0.4, b.r * 0.32, 0, TAU); ctx.fill();
+    }
+  } else if (b.idx === 4) {    // ECO DE GENESIS: núcleo + anéis
     ctx.rotate(tNow * (b.phase === 3 ? 2.2 : 1));
     for (let ring = 0; ring < 3; ring++) {
       ctx.strokeStyle = ring % 2 ? '#7b2fff' : '#ff006e';
@@ -3034,6 +3469,28 @@ function drawMinimap() {
   // nave
   mmCtx.fillStyle = '#39ff14';
   mmCtx.fillRect(SHIP_POS.x * s - 3, SHIP_POS.y * s - 3, 6, 6);
+  // cidades
+  mmCtx.strokeStyle = 'rgba(160,150,180,0.8)';
+  mmCtx.lineWidth = 1;
+  for (const c of CITIES) mmCtx.strokeRect(c.x * s - 3, c.y * s - 3, 6, 6);
+  // NPCs com missão pendente / recompensa
+  for (const n of Game.npcs) {
+    const q = n.questId ? Game.quests[n.questId] : null;
+    if (q && (q.state === 'locked' || (q.state === 'active' && q.progress >= QUESTS[n.questId].need))) {
+      mmCtx.fillStyle = '#ffd60a';
+      mmCtx.beginPath(); mmCtx.arc(n.x * s, n.y * s, 2.5, 0, TAU); mmCtx.fill();
+    }
+  }
+  // covil do verme (durante a caçada)
+  if (Game.quests.verme && Game.quests.verme.state === 'active' && Game.quests.verme.progress < 1) {
+    mmCtx.strokeStyle = '#ffae42';
+    mmCtx.beginPath(); mmCtx.arc(WORM_LAIR.x * s, WORM_LAIR.y * s, 4, 0, TAU); mmCtx.stroke();
+  }
+  // flores do vazio
+  mmCtx.fillStyle = '#ff9ee0';
+  for (const k of Game.pickups) {
+    if (k.kind === 'flower') mmCtx.fillRect(k.x * s - 1, k.y * s - 1, 2.5, 2.5);
+  }
   // fragmentos
   for (const part of Game.parts) {
     if (part.collected) continue;
@@ -3219,13 +3676,90 @@ const UI = {
   },
   startDaily() {
     document.getElementById('dailyScreen').classList.remove('active');
-    startRun();
-    Game.daily = { date: todayStr(), mods: this._dailyMods };
+    this.showCharSelect(true);
   },
   newGamePlus() {
     document.getElementById('victoryScreen').classList.remove('active');
     Game.daily = null;
     startRun(true);
+  },
+  openNpc(n) {
+    Game.state = 'npc';
+    Mouse.down = false;
+    const q = n.questId ? Game.quests[n.questId] : null;
+    const cfg = n.questId ? QUESTS[n.questId] : null;
+    let pages, mode;
+    if (q && q.state === 'locked') {
+      pages = n.talked ? [n.intro[n.intro.length - 1], n.offer] : n.intro.concat([n.offer]);
+      mode = 'offer';
+      n.talked = true;
+    } else if (q && q.state === 'active' && q.progress < cfg.need) {
+      pages = [n.during]; mode = 'talk';
+    } else if (q && q.state === 'active') {
+      pages = [n.done]; mode = 'complete';
+    } else {
+      pages = [n.after]; mode = 'talk';
+    }
+    this._npc = { n, pages, i: 0, mode };
+    document.getElementById('npcName').textContent = n.name;
+    document.getElementById('npcName').style.color = n.color;
+    document.getElementById('npcName').style.textShadow = `0 0 22px ${n.color}`;
+    document.getElementById('npcScreen').classList.add('active');
+    this.renderNpcPage();
+    Sfx.tone(500, 0.08, 'sine', 0.07, 80);
+  },
+  renderNpcPage() {
+    const s = this._npc;
+    document.getElementById('npcText').textContent = '“' + s.pages[s.i] + '”';
+    const last = s.i >= s.pages.length - 1;
+    const btns = document.getElementById('npcBtns');
+    if (!last) {
+      btns.innerHTML = '<button class="btn btn-cyan" onclick="UI.npcNext()">▸ CONTINUAR [E]</button>';
+    } else if (s.mode === 'offer') {
+      btns.innerHTML =
+        '<button class="btn btn-green" onclick="UI.acceptQuest()">✓ ACEITAR MISSÃO [E]</button>' +
+        '<button class="btn btn-dim" onclick="UI.closeNpc()">AGORA NÃO</button>';
+    } else if (s.mode === 'complete') {
+      btns.innerHTML = '<button class="btn btn-green" onclick="UI.completeQuest()">★ RECEBER RECOMPENSA [E]</button>';
+    } else {
+      btns.innerHTML = '<button class="btn btn-cyan" onclick="UI.closeNpc()">FECHAR [E]</button>';
+    }
+  },
+  npcNext() {
+    const s = this._npc;
+    if (s.i < s.pages.length - 1) { s.i++; this.renderNpcPage(); Sfx.tone(440, 0.04, 'square', 0.04); }
+    else if (s.mode === 'offer') this.acceptQuest();
+    else if (s.mode === 'complete') this.completeQuest();
+    else this.closeNpc();
+  },
+  acceptQuest() {
+    const s = this._npc;
+    const q = Game.quests[s.n.questId];
+    q.state = 'active';
+    if (s.n.questId === 'flores') {
+      for (const f of FLOWER_SPOTS)
+        Game.pickups.push({ kind: 'flower', x: f.x, y: f.y, val: 1, life: 1e9, ph: rand() * TAU });
+    }
+    showHint('MISSÃO ACEITA: ' + QUESTS[s.n.questId].label);
+    syncQuests();
+    this.closeNpc();
+  },
+  completeQuest() {
+    const s = this._npc;
+    const p = Game.player;
+    const q = Game.quests[s.n.questId];
+    q.state = 'rewarded';
+    QUESTS[s.n.questId].reward(p);
+    Game.score += 400;
+    spawnFloater(p.x, p.y - 30, 'MISSÃO CUMPRIDA! +400', '#39ff14');
+    Sfx.part();
+    syncQuests(); syncHud();
+    this.closeNpc();
+  },
+  closeNpc() {
+    document.getElementById('npcScreen').classList.remove('active');
+    Game.state = 'play';
+    lastT = performance.now();
   },
   openLog(l) {
     l.read = true;
@@ -3258,7 +3792,25 @@ const UI = {
   },
   skipStory() {
     document.getElementById('storyScreen').classList.remove('active');
+    this.showCharSelect(false);
+  },
+  showCharSelect(forDaily) {
+    this._pendingDaily = forDaily ? this._dailyMods : null;
+    document.getElementById('charGrid').innerHTML = CHARACTERS.map(c => `
+      <div class="char-card" onclick="UI.pickChar('${c.id}')" style="border-color:${c.color}55;">
+        <div class="cc-name" style="color:${c.color};text-shadow:0 0 14px ${c.color};">${c.name}</div>
+        <div class="cc-title">${c.title}</div>
+        <div class="cc-desc">${c.desc}</div>
+      </div>`).join('');
+    document.getElementById('charScreen').classList.add('active');
+  },
+  pickChar(id) {
+    Game.charId = id;
+    document.getElementById('charScreen').classList.remove('active');
+    const daily = this._pendingDaily;
     startRun();
+    if (daily) Game.daily = { date: todayStr(), mods: daily };
+    Sfx.tone(660, 0.1, 'sine', 0.1, 150);
   },
   showControls() {
     this._ctrlFrom = Game.state;
@@ -3400,7 +3952,7 @@ const UI = {
     lastT = performance.now();
   },
   toTitle() {
-    ['gameOverScreen', 'victoryScreen', 'pauseScreen', 'shopScreen', 'controlsScreen', 'storyScreen', 'logScreen', 'dailyScreen']
+    ['gameOverScreen', 'victoryScreen', 'pauseScreen', 'shopScreen', 'controlsScreen', 'storyScreen', 'logScreen', 'dailyScreen', 'charScreen', 'npcScreen']
       .forEach(id => document.getElementById(id).classList.remove('active'));
     hideHud();
     Sfx.stopDrone();

@@ -17,14 +17,26 @@ com o mouse e explora um mundo aberto de 3600×3600.
 - **Missão**: recuperar os 4 fragmentos da nave nos extremos do planeta,
   cada um guardado por um boss (Rainha do Enxame, Colosso Basáltico,
   Apex, Hidra Ácida), reparar a nave e enfrentar o boss final —
-  **Eco de Genesis** (3 fases).
-- **Combate**: 4 armas (Pulsar, Fotônico, Nova, Void), dash com
-  i-frames, inimigos com 5 comportamentos + variantes corrompidas.
-- **Progressão**: sucata como moeda, oficina na nave com 6 melhorias e
-  arsenal, dificuldade que escala com fragmentos coletados.
-- **Extras**: minimapa, seta de objetivo, cinemática de queda,
-  intro narrativa, SFX sintetizados via WebAudio, high score em
-  LocalStorage (key `rps2_save_v1`). Single-file, zero dependências.
+  **Eco de Genesis** (3 fases). Boss opcional: **Verme Colossal**.
+- **4 personagens jogáveis** do primeiro jogo: Marcelo, Felipe,
+  Takeshi e Titan, cada um com bônus próprios.
+- **Combate**: 4 armas com recarga ativa (estilo Gears), tiro carregado
+  perfurante, melee com execução, dash com i-frames e afterimage,
+  8 tipos de inimigos + variantes corrompidas, mini-chefes nomeados.
+- **Mundo aberto 4800×4800**: 2 cidades em ruínas, 3 NPCs com diálogos
+  e sidequests, 9 logs da expedição Caliburn, eventos dinâmicos
+  (tempestade de Genesis, carga de suprimentos, ninho desperto),
+  ciclo dia/noite e terreno que se corrompe conforme o progresso.
+- **Corrupção como recurso**: inimigos corrompidos dropam estilhaços
+  de Genesis que compram upgrades proibidos com maldições — 3+ pactos
+  travam o final bom (**2 finais**).
+- **Progressão**: sucata como moeda, oficina com 7 melhorias e arsenal,
+  habilidade ativa (Q) ganha de cada guardião derrotado, combo
+  multiplicador, New Game+ e desafio diário com seed da data.
+- **Extras**: minimapa, seta de objetivo, cinemática de queda, intro
+  narrativa, números de dano, hit-stop, SFX sintetizados via WebAudio,
+  high score em LocalStorage (key `rps2_save_v1`). Single-file,
+  zero dependências.
 
 ## Rodar local
 
