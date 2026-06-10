@@ -3,6 +3,29 @@
 Space-shooter em HTML5 Canvas. Single-file (`index.html`), zero build step,
 zero dependências (exceto PeerJS via CDN, só pro modo Online).
 
+## 🪐 Sequência: Shooter 2 — Queda em Vermilion
+
+A continuação oficial está em **`shooter2.html`** (acessível pelo botão
+"SHOOTER 2" no menu principal). Após destruir Genesis Omega no primeiro
+jogo, a explosão abre uma fenda dimensional e a nave do piloto cai em
+**Vermilion-7**, um planeta fora de todas as cartas estelares.
+
+Diferente do original (nave, scroll vertical), o 2 é um **shooter
+top-down de visão de cima**: você anda a pé pelo planeta com WASD, mira
+com o mouse e explora um mundo aberto de 3600×3600.
+
+- **Missão**: recuperar os 4 fragmentos da nave nos extremos do planeta,
+  cada um guardado por um boss (Rainha do Enxame, Colosso Basáltico,
+  Apex, Hidra Ácida), reparar a nave e enfrentar o boss final —
+  **Eco de Genesis** (3 fases).
+- **Combate**: 4 armas (Pulsar, Fotônico, Nova, Void), dash com
+  i-frames, inimigos com 5 comportamentos + variantes corrompidas.
+- **Progressão**: sucata como moeda, oficina na nave com 6 melhorias e
+  arsenal, dificuldade que escala com fragmentos coletados.
+- **Extras**: minimapa, seta de objetivo, cinemática de queda,
+  intro narrativa, SFX sintetizados via WebAudio, high score em
+  LocalStorage (key `rps2_save_v1`). Single-file, zero dependências.
+
 ## Rodar local
 
 Não precisa de bundler. Abre num servidor http simples:
