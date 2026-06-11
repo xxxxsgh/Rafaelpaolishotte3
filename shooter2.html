@@ -343,9 +343,15 @@ body.touch-mode #hudHint { bottom: 160px; }
   <div class="main-title">RAFA PAOLI'S<br>SHOOTER 2</div>
   <div class="subtitle">Queda em Vermilion</div>
   <div class="menu-buttons">
+    <button class="btn btn-green" id="contBtn" style="display:none;" onclick="UI.continueRun()">⟳ CONTINUAR EXPEDIÇÃO</button>
     <button class="btn" onclick="UI.startStory()">▶ NOVA EXPEDIÇÃO</button>
     <button class="btn" style="border-color:var(--gold);color:var(--gold);" onclick="UI.showDaily()">📅 DESAFIO DIÁRIO</button>
-    <button class="btn btn-cyan" onclick="UI.showControls()">CONTROLES</button>
+    <button class="btn" id="hordeBtn" style="display:none;border-color:#ff5252;color:#ff5252;" onclick="UI.startHorde()">☠ MODO HORDA</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;">
+      <button class="btn btn-cyan" style="margin-top:0;font-size:10px;padding:10px 6px;" onclick="UI.showControls()">CONTROLES</button>
+      <button class="btn btn-dim" style="margin-top:0;font-size:10px;padding:10px 6px;" onclick="UI.showOptions()">⚙ OPÇÕES</button>
+      <button class="btn btn-dim" style="margin-top:0;font-size:10px;padding:10px 6px;" onclick="UI.showAch()">🏆 <span id="achCount"></span></button>
+    </div>
     <button class="btn btn-dim" onclick="location.href='index.html'">◀ JOGO ORIGINAL</button>
   </div>
   <div id="titleBest"></div>
@@ -390,6 +396,7 @@ body.touch-mode #hudHint { bottom: 160px; }
   <p>A fauna de Vermilion não espera por você.</p>
   <button class="btn btn-green" onclick="UI.resume()">▶ CONTINUAR</button>
   <button class="btn btn-cyan" onclick="UI.showControls()">CONTROLES</button>
+  <button class="btn btn-dim" onclick="UI.showOptions()">⚙ OPÇÕES</button>
   <button class="btn btn-dim" onclick="UI.toTitle()">ABANDONAR EXPEDIÇÃO</button>
 </div>
 
@@ -411,7 +418,7 @@ body.touch-mode #hudHint { bottom: 160px; }
   <h1>SINAL PERDIDO</h1>
   <p id="gameOverFlavor">A fauna de Vermilion reclama mais um visitante.</p>
   <div class="stats-list" id="gameOverStats"></div>
-  <button class="btn btn-green" onclick="UI.respawn()">⟳ REINICIAR NO ACAMPAMENTO <span style="font-size:9px;opacity:0.7;">(mantém melhorias, perde 30% da sucata)</span></button>
+  <button class="btn btn-green" id="respawnBtn" onclick="UI.respawn()">⟳ REINICIAR NO ACAMPAMENTO <span style="font-size:9px;opacity:0.7;">(mantém melhorias, perde 30% da sucata)</span></button>
   <button class="btn btn-dim" onclick="UI.toTitle()">MENU PRINCIPAL</button>
 </div>
 
@@ -479,6 +486,27 @@ body.touch-mode #hudHint { bottom: 160px; }
   <div id="npcBtns"></div>
 </div>
 
+<!-- OPÇÕES -->
+<div id="optScreen" class="overlay">
+  <h1 style="color:var(--cyan);text-shadow:0 0 26px rgba(0,245,255,0.7);">⚙ OPÇÕES</h1>
+  <div style="margin:14px 0;">
+    <div style="font-family:'Orbitron',monospace;font-size:11px;letter-spacing:2px;color:rgba(255,232,224,0.6);margin-bottom:6px;">VOLUME <span id="volVal"></span></div>
+    <input type="range" id="volSlider" min="0" max="100" style="width:100%;accent-color:#00f5ff;" oninput="UI.setVol(this.value)">
+  </div>
+  <button class="btn btn-cyan" id="optShake" onclick="UI.toggleOpt('shake')"></button>
+  <button class="btn btn-cyan" id="optDmg" onclick="UI.toggleOpt('dmgNums')"></button>
+  <button class="btn btn-cyan" id="optPerf" onclick="UI.toggleOpt('perf')"></button>
+  <button class="btn btn-green" onclick="UI.closeOptions()">VOLTAR</button>
+</div>
+
+<!-- CONQUISTAS -->
+<div id="achScreen" class="overlay">
+  <h1 style="color:var(--gold);text-shadow:0 0 26px rgba(255,214,10,0.7);">🏆 CONQUISTAS</h1>
+  <div id="achTotals" style="font-size:12px;color:rgba(255,232,224,0.5);letter-spacing:1px;margin-bottom:12px;"></div>
+  <div class="stats-list" id="achList"></div>
+  <button class="btn" onclick="document.getElementById('achScreen').classList.remove('active');document.getElementById('titleScreen').classList.add('active')">VOLTAR</button>
+</div>
+
 <!-- DESAFIO DIÁRIO -->
 <div id="dailyScreen" class="overlay">
   <h1>📅 DESAFIO DIÁRIO</h1>
@@ -520,6 +548,14 @@ const SAVE_KEY = 'rps2_save_v1';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+// modo performance: anula todos os shadowBlur (glow) sem tocar nos call-sites
+{
+  const blurDesc = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'shadowBlur');
+  Object.defineProperty(ctx, 'shadowBlur', {
+    get() { return blurDesc.get.call(this); },
+    set(v) { blurDesc.set.call(this, (typeof SAVE !== 'undefined' && SAVE.opts && SAVE.opts.perf) ? 0 : v); },
+  });
+}
 function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
 addEventListener('resize', resize); resize();
 
@@ -551,6 +587,8 @@ const Sfx = {
   },
   tone(freq, dur, type = 'square', vol = 0.12, slide = 0) {
     if (this.muted || !this.ac) return;
+    vol *= (typeof SAVE !== 'undefined' && SAVE.opts) ? SAVE.opts.vol : 1;
+    if (vol <= 0.001) return;
     const t = this.ac.currentTime;
     const o = this.ac.createOscillator(), g = this.ac.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t);
@@ -562,6 +600,8 @@ const Sfx = {
   },
   noise(dur, vol = 0.18, freq = 800) {
     if (this.muted || !this.ac) return;
+    vol *= (typeof SAVE !== 'undefined' && SAVE.opts) ? SAVE.opts.vol : 1;
+    if (vol <= 0.001) return;
     const t = this.ac.currentTime;
     const len = Math.floor(this.ac.sampleRate * dur);
     const buf = this.ac.createBuffer(1, len, this.ac.sampleRate);
@@ -587,21 +627,102 @@ const Sfx = {
   part() { this.tone(523, 0.12, 'sine', 0.12); setTimeout(() => this.tone(659, 0.12, 'sine', 0.12), 110); setTimeout(() => this.tone(784, 0.25, 'sine', 0.12), 220); },
   dash() { this.noise(0.16, 0.1, 2000); },
   bossRoar() { this.tone(110, 1.1, 'sawtooth', 0.22, -70); this.noise(0.8, 0.2, 300); },
-  startDrone() {
-    if (this.muted || !this.ac || this.droneNodes) return;
-    const g = this.ac.createGain(); g.gain.value = 0.025; g.connect(this.ac.destination);
-    const o1 = this.ac.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 55;
-    const o2 = this.ac.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = 55.7;
-    const f = this.ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220;
-    o1.connect(f); o2.connect(f); f.connect(g);
-    o1.start(); o2.start();
-    this.droneNodes = [o1, o2, g];
+  startDrone() { Music.start(); },
+  stopDrone() { Music.stop(); }
+};
+
+/* ════════════ MÚSICA PROCEDURAL (3 estados) ════════════ */
+const Music = {
+  timer: null, next: 0, step: 0, state: 'explore',
+  start() {
+    if (this.timer || Sfx.muted) return;
+    Sfx.init();
+    if (!Sfx.ac) return;
+    this.next = Sfx.ac.currentTime + 0.08;
+    this.step = 0;
+    this.timer = setInterval(() => this.tick(), 80);
   },
-  stopDrone() {
-    if (!this.droneNodes) return;
-    try { this.droneNodes[0].stop(); this.droneNodes[1].stop(); this.droneNodes[2].disconnect(); } catch (e) {}
-    this.droneNodes = null;
-  }
+  stop() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+  },
+  vol() { return (SAVE.opts.vol !== undefined ? SAVE.opts.vol : 1); },
+  tick() {
+    const ac = Sfx.ac;
+    if (!ac || Sfx.muted) return;
+    const bpm = this.state === 'boss' ? 140 : this.state === 'combat' ? 118 : 74;
+    const spb = 60 / bpm / 2; // colcheias
+    while (this.next < ac.currentTime + 0.22) {
+      this.schedule(this.step, this.next, spb);
+      this.next += spb;
+      this.step = (this.step + 1) % 32;
+    }
+  },
+  osc(freq, t, dur, type, vol) {
+    const ac = Sfx.ac;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  },
+  kick(t, vol) {
+    const ac = Sfx.ac;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.1);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t + 0.15);
+  },
+  hat(t, vol) {
+    const ac = Sfx.ac;
+    const len = Math.floor(ac.sampleRate * 0.035);
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 6000;
+    const g = ac.createGain(); g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(ac.destination);
+    src.start(t);
+  },
+  schedule(s, t, spb) {
+    const v = this.vol() * 0.5;
+    if (v <= 0.001) return;
+    const ROOT = 55; // Lá grave
+    const semi = n => ROOT * Math.pow(2, n / 12);
+    if (this.state === 'explore') {
+      // pads esparsos em menor — o planeta respira
+      const prog = [0, 3, -2, 5];
+      if (s % 8 === 0) {
+        const n = prog[(s / 8) % 4];
+        this.osc(semi(n) * 2, t, spb * 7, 'sine', 0.06 * v);
+        this.osc(semi(n + 7) * 2, t, spb * 7, 'sine', 0.035 * v);
+      }
+      if (s % 16 === 4) this.osc(semi(0), t, spb * 5, 'triangle', 0.05 * v);
+      if (s % 32 === 22) this.osc(semi(10) * 4, t, spb * 3, 'sine', 0.025 * v);
+    } else if (this.state === 'combat') {
+      const bass = [0, 0, 7, 0, 3, 3, 10, 7];
+      this.osc(semi(bass[s % 8]), t, spb * 0.9, 'sawtooth', 0.055 * v);
+      if (s % 8 === 0) this.kick(t, 0.22 * v);
+      if (s % 2 === 1) this.hat(t, 0.05 * v);
+      if (s % 16 === 8) this.osc(semi(12) * 2, t, spb * 2, 'square', 0.03 * v);
+    } else {
+      // boss: trítono e pressa
+      const bass = [0, 6, 0, 6, 1, 6, 0, 8];
+      this.osc(semi(bass[s % 8]), t, spb * 0.9, 'sawtooth', 0.07 * v);
+      if (s % 4 === 0) this.kick(t, 0.26 * v);
+      this.hat(t, (s % 2 ? 0.05 : 0.03) * v);
+      if (s % 4 === 2) {
+        const arp = [12, 15, 18, 13];
+        this.osc(semi(arp[(s / 4 | 0) % 4]) * 2, t, spb * 1.5, 'square', 0.035 * v);
+      }
+    }
+  },
 };
 addEventListener('keydown', e => { if (e.key === 'm' || e.key === 'M') Sfx.toggle(); });
 
@@ -610,7 +731,7 @@ const WEAPONS = [
   { id: 'pistol',  name: 'PULSAR',   slot: 1, dmg: 12, cd: 0.24, speed: 640, spread: 0.03, pellets: 1, ammo: Infinity, color: '#00f5ff', size: 4, price: 0 },
   { id: 'rifle',   name: 'FOTÔNICO', slot: 2, dmg: 9,  cd: 0.085, speed: 760, spread: 0.07, pellets: 1, ammo: 90,  color: '#39ff14', size: 3.5, price: 120, ammoPack: 60, ammoPrice: 25, mag: 30, reload: 1.1 },
   { id: 'shotgun', name: 'NOVA',     slot: 3, dmg: 8,  cd: 0.72, speed: 560, spread: 0.34, pellets: 6, ammo: 18,  color: '#ffd60a', size: 3.5, price: 200, ammoPack: 12, ammoPrice: 30, mag: 6, reload: 1.4 },
-  { id: 'void',    name: 'VOID',     slot: 4, dmg: 55, cd: 0.95, speed: 420, spread: 0,    pellets: 1, ammo: 8,   color: '#b366ff', size: 7, price: 340, ammoPack: 6, ammoPrice: 45, aoe: 90, mag: 2, reload: 1.6 },
+  { id: 'void',    name: 'VOID',     slot: 4, dmg: 42, cd: 0.95, speed: 420, spread: 0,    pellets: 1, ammo: 8,   color: '#b366ff', size: 7, price: 340, ammoPack: 6, ammoPrice: 45, aoe: 90, mag: 2, reload: 1.6 },
 ];
 
 const CURSED_UPGRADES = [
@@ -712,7 +833,7 @@ const NPCS = [
       'Eu era carga viva da Caliburn. Fugi quando os outros começaram a MUDAR. Vivo aqui, na sombra da sua nave, desde então.',
       'Tem um verme do tamanho de um prédio aninhado a NOROESTE. Ele engoliu meu kit de reparo... e meu braço.',
     ],
-    offer: 'Mate o VERME COLOSSAL no covil a noroeste e te dou tudo que enterrei: 200 de sucata e 3 estilhaços.',
+    offer: 'Mate o VERME COLOSSAL no covil a noroeste e te dou tudo que enterrei: 150 de sucata e 2 estilhaços.',
     during: 'O covil fica a NOROESTE. Ele é invulnerável debaixo da terra — atire quando ele emergir.',
     done: 'Você... matou aquilo?! Toma. Prometido é prometido. Os estilhaços, usa por sua conta e risco.',
     after: 'Durma com um olho aberto, piloto. Eu durmo com os dois.',
@@ -746,7 +867,7 @@ const NPCS = [
 ];
 
 const QUESTS = {
-  verme:       { label: 'CAÇADA: VERME COLOSSAL',   need: 1, reward(p) { p.scrap += 200; p.shards += 3; } },
+  verme:       { label: 'CAÇADA: VERME COLOSSAL',   need: 1, reward(p) { p.scrap += 150; p.shards += 2; } },
   corrompidos: { label: 'EXPURGO: CORROMPIDOS',     need: 8, reward(p) { p.shards += 5; } },
   flores:      { label: 'COLHEITA: FLORES DO VAZIO', need: 3, reward(p) { p.scrap += 150; p.hp = pStat(p).maxHp; } },
 };
@@ -755,6 +876,45 @@ const MINIBOSSES = [
   { type: 'charger', name: 'ALFA DA MATILHA' },
   { type: 'spitter', name: 'ANCIÃO CUSPIDOR' },
 ];
+
+const ACHIEVEMENTS = [
+  { id: 'primeiro_sangue', name: 'PRIMEIRO SANGUE',      desc: 'Abata sua primeira criatura' },
+  { id: 'guardiao',        name: 'CAÇADOR DE GUARDIÕES', desc: 'Derrote um boss guardião' },
+  { id: 'cacador',         name: 'EXTERMINADOR',         desc: '100 abates acumulados' },
+  { id: 'executor',        name: 'EXECUTOR',             desc: '10 execuções com o golpe [F]' },
+  { id: 'arquivista',      name: 'ARQUIVISTA',           desc: 'Leia os 9 registros da Caliburn numa expedição' },
+  { id: 'para_casa',       name: 'PARA CASA',            desc: 'Escape de Vermilion-7 (final bom)' },
+  { id: 'novo_eco',        name: 'O NOVO ECO',           desc: 'Descubra o final corrompido' },
+  { id: 'elenco',          name: 'ESQUADRÃO COMPLETO',   desc: 'Desbloqueie os 4 personagens' },
+  { id: 'veterano',        name: 'VETERANO',             desc: 'Vença uma expedição em NG+' },
+  { id: 'horda10',         name: 'MURALHA VIVA',         desc: 'Alcance a onda 10 no Modo Horda' },
+];
+function checkAch(id) {
+  if (SAVE.ach[id]) return;
+  SAVE.ach[id] = true;
+  persistSave();
+  const a = ACHIEVEMENTS.find(x => x.id === id);
+  showHint('🏆 CONQUISTA: ' + a.name);
+  Sfx.part();
+}
+const UNLOCK_BY_BOSS = { 0: 'felipe', 1: 'titan', 2: 'takeshi' };
+const CHAR_UNLOCK_HINT = {
+  felipe: 'DERROTE A RAINHA DO ENXAME',
+  titan: 'DERROTE O COLOSSO BASÁLTICO',
+  takeshi: 'DERROTE O APEX',
+};
+function charUnlocked(id) { return id === 'marcelo' || !!SAVE.unlocks[id]; }
+function accumulateTotals(win) {
+  const t = SAVE.totals = SAVE.totals || {};
+  t.kills = (t.kills || 0) + Game.kills;
+  t.executions = (t.executions || 0) + (Game.stats.exec || 0);
+  t.runs = (t.runs || 0) + 1;
+  if (win) t.wins = (t.wins || 0) + 1;
+  t.time = (t.time || 0) + Math.floor(Game.time);
+  if (t.kills >= 100) checkAch('cacador');
+  if (t.executions >= 10) checkAch('executor');
+  persistSave();
+}
 
 /* ── personagens jogáveis (veteranos do primeiro jogo) ── */
 const CHARACTERS = [
@@ -793,14 +953,21 @@ const Game = {
   ngPlus: 0, daily: null,
   dmgDirs: [], arena: null,
   npcs: [], quests: {}, miniT: 100, cityHints: {}, charId: 'marcelo',
+  nests: [], surgeT: 60, autoT: 10, slowmoT: 0, tut: null,
+  hordeMode: false, horde: { wave: 1, t: 30 },
   cam: { x: 0, y: 0, shake: 0 },
   score: 0, kills: 0, scrapTotal: 0, bossKills: 0,
   partsCollected: 0, shipRepaired: false, canTakeOff: false,
   best: 0,
   stats: {},
 };
-let SAVE = { best: 0, endings: {}, daily: null };
+let SAVE = {
+  best: 0, endings: {}, daily: null, run: null,
+  unlocks: {}, ach: {}, totals: {}, hordeBest: 0, tutorialDone: false,
+  opts: { vol: 1, shake: 1, dmgNums: 1, perf: (('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 1 : 0 },
+};
 try { SAVE = Object.assign(SAVE, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
+SAVE.opts = Object.assign({ vol: 1, shake: 1, dmgNums: 1, perf: 0 }, SAVE.opts || {});
 Game.best = SAVE.best || 0;
 function persistSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
@@ -985,11 +1152,96 @@ bindMBtn('mbPause', () => {
   else if (Game.state === 'pause') UI.resume();
 });
 
+/* ── GAMEPAD ── */
+const GP = { move: null, aim: null, fire: false, prev: [] };
+function pollGamepad() {
+  if (!navigator.getGamepads) return;
+  const gp = navigator.getGamepads()[0];
+  if (!gp) { GP.move = null; GP.aim = null; GP.fire = false; return; }
+  const lx = gp.axes[0] || 0, ly = gp.axes[1] || 0;
+  GP.move = Math.hypot(lx, ly) > 0.22 ? { x: lx, y: ly } : null;
+  const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
+  const rm = Math.hypot(rx, ry);
+  GP.aim = rm > 0.3 ? Math.atan2(ry, rx) : null;
+  GP.fire = rm > 0.6 || (gp.buttons[7] && gp.buttons[7].value > 0.5);
+  const pr = i => {
+    const now = !!(gp.buttons[i] && gp.buttons[i].pressed);
+    const was = GP.prev[i];
+    GP.prev[i] = now;
+    return now && !was;
+  };
+  if (Game.state === 'play') {
+    if (pr(0)) tryDash();
+    if (pr(2)) tryMelee();
+    if (pr(3)) useAbility();
+    if (pr(1)) attemptOrStartReload();
+    if (pr(4)) cycleAbility();
+    if (pr(5)) mobileCycleWeapon();
+    if (pr(10)) tryInteract();
+    if (pr(9)) UI.pause();
+  } else {
+    if (Game.state === 'pause' && pr(9)) UI.resume();
+    else if (Game.state === 'npc' && (pr(0) || pr(10))) UI.npcNext();
+    else if (Game.state === 'log' && pr(0)) UI.closeLog();
+    else if (Game.state === 'shop' && pr(1)) UI.closeShop();
+    // mantém o edge-detection atualizado
+    for (let i = 0; i < gp.buttons.length; i++) GP.prev[i] = !!(gp.buttons[i] && gp.buttons[i].pressed);
+  }
+}
+
 /* ════════════ TERRENO (pré-renderizado) ════════════ */
 const TERRAIN_SCALE = 0.5;
 let terrainCanvas = null;
 let terrainCtx = null;
 let glowDecos = [];     // cristais animados desenhados ao vivo
+let obstacles = [];     // rochas sólidas que bloqueiam movimento e balas
+
+function genObstacles(rng) {
+  obstacles = [];
+  const avoid = [
+    { x: SHIP_POS.x, y: SHIP_POS.y, r: 420 },
+    { x: WORM_LAIR.x, y: WORM_LAIR.y, r: 280 },
+    ...BOSSES.map(b => ({ x: b.x, y: b.y, r: 700 })),
+    ...CITIES.map(c => ({ x: c.x, y: c.y, r: 460 })),
+    ...NPCS.map(n => ({ x: n.x, y: n.y, r: 120 })),
+    ...LOGS.map(l => ({ x: l.x, y: l.y, r: 90 })),
+    ...FLOWER_SPOTS.map(f => ({ x: f.x, y: f.y, r: 90 })),
+  ];
+  function tryPlace(x, y, r) {
+    for (const a of avoid) if (dist2(x, y, a.x, a.y) < (a.r + r) ** 2) return false;
+    for (const o of obstacles) if (dist2(x, y, o.x, o.y) < (o.r + r + 30) ** 2) return false;
+    obstacles.push({ x, y, r });
+    return true;
+  }
+  for (let i = 0; i < 130; i++) {
+    tryPlace(120 + rng() * (WORLD.w - 240), 120 + rng() * (WORLD.h - 240), 24 + rng() * 34);
+  }
+  // oeste rochoso: território do Colosso é mais fechado
+  for (let i = 0; i < 30; i++) {
+    tryPlace(120 + rng() * 1100, 400 + rng() * (WORLD.h - 800), 26 + rng() * 38);
+  }
+}
+
+/* empurra uma entidade circular para fora das rochas */
+function collideObstacles(ent) {
+  for (const o of obstacles) {
+    let dx = ent.x - o.x, dy = ent.y - o.y;
+    if (Math.abs(dx) > o.r + ent.r || Math.abs(dy) > o.r + ent.r) continue;
+    let d = Math.hypot(dx, dy);
+    const min = o.r + ent.r;
+    if (d >= min) continue;
+    if (d < 0.001) { dx = 1; dy = 0; d = 1; }   // exatamente no centro: empurra pro lado
+    ent.x = o.x + dx / d * min;
+    ent.y = o.y + dy / d * min;
+  }
+}
+function bulletHitsObstacle(b) {
+  for (const o of obstacles) {
+    if (Math.abs(b.x - o.x) > o.r + b.r || Math.abs(b.y - o.y) > o.r + b.r) continue;
+    if (dist2(b.x, b.y, o.x, o.y) < (o.r + b.r) * (o.r + b.r)) return o;
+  }
+  return null;
+}
 function buildTerrain() {
   const rng = mulberry32(20470613);
   terrainCanvas = document.createElement('canvas');
@@ -1142,6 +1394,37 @@ function buildTerrain() {
       ph: rng() * TAU,
     });
   }
+
+  // rochas sólidas (desenhadas no terreno; colisão ao vivo)
+  genObstacles(rng);
+  for (const o of obstacles) {
+    t.save();
+    t.translate(o.x, o.y);
+    // sombra
+    t.fillStyle = 'rgba(0,0,0,0.45)';
+    t.beginPath(); t.ellipse(4, 7, o.r * 1.05, o.r * 0.9, 0, 0, TAU); t.fill();
+    // corpo facetado
+    t.fillStyle = `rgb(${72 + rng() * 26 | 0},${52 + rng() * 20 | 0},${68 + rng() * 26 | 0})`;
+    t.strokeStyle = 'rgba(15,8,18,0.9)';
+    t.lineWidth = 3;
+    t.beginPath();
+    const n = 7 + (rng() * 3 | 0);
+    const pts = [];
+    for (let k = 0; k < n; k++) {
+      const a = k / n * TAU, rr = o.r * (0.85 + rng() * 0.25);
+      pts.push([Math.cos(a) * rr, Math.sin(a) * rr]);
+      k === 0 ? t.moveTo(pts[k][0], pts[k][1]) : t.lineTo(pts[k][0], pts[k][1]);
+    }
+    t.closePath(); t.fill(); t.stroke();
+    // face iluminada
+    t.fillStyle = 'rgba(255,160,130,0.18)';
+    t.beginPath();
+    t.moveTo(pts[0][0] * 0.5 - o.r * 0.2, pts[0][1] * 0.5 - o.r * 0.3);
+    t.lineTo(pts[1][0] * 0.6, pts[1][1] * 0.6 - o.r * 0.2);
+    t.lineTo(0, 0);
+    t.closePath(); t.fill();
+    t.restore();
+  }
 }
 
 /* ════════════ INÍCIO DE EXPEDIÇÃO ════════════ */
@@ -1178,6 +1461,23 @@ function startRun(keepBuild) {
   Game.quests = { verme: { state: 'locked', progress: 0 }, corrompidos: { state: 'locked', progress: 0 }, flores: { state: 'locked', progress: 0 } };
   Game.miniT = 100 + rand() * 40;
   Game.cityHints = {};
+  Game.surgeT = 55 + rand() * 25;
+  Game.autoT = 10;
+  Game.slowmoT = 0;
+  Game.hordeMode = false;
+  Game.horde = { wave: 1, t: 30 };
+  Game._wasSwamp = false; Game._wasFog = false;
+  Game.tut = (!SAVE.tutorialDone) ? { step: 0 } : null;
+  // ninhos destrutíveis do norte
+  Game.nests = [];
+  {
+    const nr = mulberry32(777001);
+    for (let i = 0; i < 9; i++) {
+      const nx = 500 + nr() * (WORLD.w - 1000), ny = 280 + nr() * 650;
+      if (dist2(nx, ny, BOSSES[0].x, BOSSES[0].y) < 650 * 650) continue;
+      Game.nests.push({ x: nx, y: ny, hp: 70, maxHp: 70, t: nr() * 4, r: 22 });
+    }
+  }
   // personagem escolhido
   Game.player.char = Game.charId;
   if (Game.charId === 'marcelo') { Game.abilities[0] = true; Game.abilitySel = 0; }
@@ -1191,6 +1491,77 @@ function startRun(keepBuild) {
   Game.cineT = 0;
   Game.state = 'cinematic';
   Sfx.init();
+}
+
+/* ════════════ AUTO-SAVE DA EXPEDIÇÃO ════════════ */
+function saveRun() {
+  if (Game.state !== 'play' || Game.hordeMode || !Game.player) return;
+  const p = Game.player;
+  SAVE.run = {
+    v: 1, charId: Game.charId, ngPlus: Game.ngPlus, daily: Game.daily,
+    time: Game.time, score: Game.score, kills: Game.kills,
+    scrapTotal: Game.scrapTotal, bossKills: Game.bossKills,
+    partsCollected: Game.partsCollected, shipRepaired: Game.shipRepaired, canTakeOff: Game.canTakeOff,
+    parts: Game.parts.map(pt => ({ collected: pt.collected, shielded: pt.shielded, bossDead: pt.bossDead })),
+    logs: Game.logs.map(l => l.read), logsRead: Game.logsRead,
+    npcs: Game.npcs.map(n => n.talked),
+    quests: Game.quests, abilities: Game.abilities, abilitySel: Game.abilitySel,
+    stats: Game.stats,
+    player: {
+      x: p.x, y: p.y, hp: p.hp, weapon: p.weapon, owned: p.owned,
+      ammo: p.ammo.map(a => a === Infinity ? 'inf' : a), magAmmo: p.magAmmo,
+      scrap: p.scrap, shards: p.shards, upg: p.upg, cursed: p.cursed,
+    },
+  };
+  persistSave();
+}
+function loadRun() {
+  const r = SAVE.run;
+  if (!r) return;
+  Game.charId = r.charId;
+  Game.daily = null;
+  startRun();
+  // restaura progresso por cima da expedição recém-criada
+  Game.ngPlus = r.ngPlus || 0;
+  Game.daily = r.daily || null;
+  Game.time = r.time; Game.score = r.score; Game.kills = r.kills;
+  Game.scrapTotal = r.scrapTotal; Game.bossKills = r.bossKills;
+  Game.partsCollected = r.partsCollected;
+  Game.shipRepaired = false; // boss final re-engatilha ao reparar de novo
+  Game.canTakeOff = r.canTakeOff;
+  if (r.shipRepaired && !r.canTakeOff) Game.partsCollected = 4; // estava na luta final
+  Game.parts.forEach((pt, i) => Object.assign(pt, r.parts[i]));
+  Game.logs.forEach((l, i) => { l.read = r.logs[i]; });
+  Game.logsRead = r.logsRead;
+  Game.npcs.forEach((n, i) => { n.talked = r.npcs[i]; });
+  Game.quests = r.quests;
+  Game.abilities = r.abilities; Game.abilitySel = r.abilitySel;
+  Game.stats = r.stats || {};
+  const p = Game.player, rp = r.player;
+  Object.assign(p, {
+    x: rp.x, y: rp.y, weapon: rp.weapon, owned: rp.owned,
+    ammo: rp.ammo.map(a => a === 'inf' ? Infinity : a), magAmmo: rp.magAmmo,
+    scrap: rp.scrap, shards: rp.shards, upg: rp.upg, cursed: rp.cursed,
+  });
+  p.char = Game.charId;
+  p.hp = Math.min(rp.hp, pStat(p).maxHp);
+  p.invulnT = 2;
+  // reaplica corrupção visual do progresso
+  for (let i = 0; i < 4; i++) if (Game.parts[i].bossDead) corruptTerrain(BOSSES[i].x, BOSSES[i].y);
+  for (let n = 0; n < Game.ngPlus; n++) for (const b of BOSSES) corruptTerrain(b.x + n * 60, b.y - n * 40);
+  // flores restantes da missão da Naya
+  if (Game.quests.flores && Game.quests.flores.state === 'active') {
+    const left = QUESTS.flores.need - Game.quests.flores.progress;
+    for (let i = 0; i < left; i++)
+      Game.pickups.push({ kind: 'flower', x: FLOWER_SPOTS[i].x, y: FLOWER_SPOTS[i].y, val: 1, life: 1e9, ph: rand() * TAU });
+  }
+  Game.tut = null;
+  Game.state = 'play';
+  showHud();
+  updateObjective(); syncHud(); syncAbilities(); syncQuests();
+  Sfx.init(); Music.start();
+  showHint('EXPEDIÇÃO RESTAURADA — DIA ' + (1 + Math.floor(Game.time / 240)));
+  lastT = performance.now();
 }
 
 /* respawn após morte: mantém upgrades/armas/fragmentos, perde 30% sucata */
@@ -1228,7 +1599,6 @@ function tryDash() {
   p.dashT = 0.18;
   p.dashId++;
   p.dashCd = pStat(p).dashCdMax;
-  p.invulnT = Math.max(p.invulnT, 0.3);
   Sfx.dash();
   for (let i = 0; i < 10; i++) spawnParticle(p.x, p.y, '#00f5ff', 2.5, 0.4);
 }
@@ -1295,6 +1665,10 @@ function winGame() {
   Game.score += dark ? 1000 : 2500;
   SAVE.endings = SAVE.endings || {};
   if (dark) SAVE.endings.dark = true; else SAVE.endings.good = true;
+  checkAch(dark ? 'novo_eco' : 'para_casa');
+  if (!dark && Game.ngPlus > 0) checkAch('veterano');
+  SAVE.run = null;          // expedição concluída: limpa o auto-save
+  accumulateTotals(true);
   recordDaily();
   const isRecord = !Game.daily && Game.score > Game.best;
   if (isRecord) { Game.best = Game.score; SAVE.best = Game.best; }
@@ -1340,13 +1714,25 @@ function gameOver() {
   Sfx.stopDrone();
   Sfx.explode();
   recordDaily();
-  document.getElementById('gameOverStats').innerHTML = statRows([
+  accumulateTotals(false);
+  const rows = [
     ['TEMPO SOBREVIVIDO', fmtTime(Game.time)],
     ['CRIATURAS ABATIDAS', Game.kills],
-    ['FRAGMENTOS', Game.partsCollected + '/4'],
     ...sessionStats(),
     ['SCORE', Game.score],
-  ]);
+  ];
+  if (Game.hordeMode) {
+    rows.unshift(['ONDA ALCANÇADA', Game.horde.wave]);
+    if (Game.horde.wave > (SAVE.hordeBest || 0)) {
+      SAVE.hordeBest = Game.horde.wave;
+      persistSave();
+      rows.push(['★ NOVO RECORDE DE ONDA ★', Game.horde.wave]);
+    }
+  } else {
+    rows.splice(2, 0, ['FRAGMENTOS', Game.partsCollected + '/4']);
+  }
+  document.getElementById('respawnBtn').style.display = Game.hordeMode ? 'none' : 'block';
+  document.getElementById('gameOverStats').innerHTML = statRows(rows);
   const flavors = [
     'A fauna de Vermilion reclama mais um visitante.',
     'O eco de Genesis ri no escuro.',
@@ -1431,10 +1817,12 @@ function finishReload(perfect) {
 
 /* ════════════ INIMIGOS ════════════ */
 function difficultyMult() {
+  if (Game.hordeMode) return 1 + Game.horde.wave * 0.09;
   return (1 + Game.partsCollected * 0.3 + (Game.shipRepaired ? 0.4 : 0)) * (1 + 0.6 * Game.ngPlus);
 }
 function corruptionChance() {
   let c = Game.partsCollected >= 2 ? 0.12 + Game.partsCollected * 0.07 : 0;
+  if (Game.hordeMode) c = 0.08 + Game.horde.wave * 0.04;
   if (Game.night) c += 0.12;
   if (dailyMod('corrupt')) c += 0.2;
   if (Game.ngPlus > 0) c += 0.1 * Game.ngPlus;
@@ -1465,13 +1853,19 @@ function ambientSpawn(dt) {
   if (Game.boss || Game.bossIntroT > 0) return;
   Game.spawnT -= dt;
   if (Game.spawnT > 0) return;
-  const cap = 9 + Game.partsCollected * 4;
-  Game.spawnT = Math.max(0.9, 2.3 - Game.partsCollected * 0.28) * (Game.night ? 0.85 : 1);
+  const cap = Game.hordeMode ? 10 + Game.horde.wave * 3 : 12 + Game.partsCollected * 5 + (Game.shipRepaired ? 6 : 0);
+  Game.spawnT = (Game.hordeMode
+    ? Math.max(0.4, 1.8 - Game.horde.wave * 0.12)
+    : Math.max(0.8, 2.1 - Game.partsCollected * 0.26)) * (Game.night ? 0.85 : 1);
   if (Game.enemies.length >= cap) return;
   const p = Game.player;
   // zona segura junto à nave (antes do reparo)
-  if (!Game.shipRepaired && dist2(p.x, p.y, SHIP_POS.x, SHIP_POS.y) < 300 * 300) return;
-  const a = rand() * TAU, d = 720 + rand() * 260;
+  if (!Game.hordeMode && !Game.shipRepaired && dist2(p.x, p.y, SHIP_POS.x, SHIP_POS.y) < 300 * 300) return;
+  // spawn direcional: mais inimigos no caminho para onde você corre
+  let a = rand() * TAU;
+  const pv = Math.hypot(p.velX || 0, p.velY || 0);
+  if (pv > 60 && rand() < 0.55) a = Math.atan2(p.velY, p.velX) + (rand() - 0.5) * 1.5;
+  const d = 720 + rand() * 260;
   const x = clamp(p.x + Math.cos(a) * d, 40, WORLD.w - 40);
   const y = clamp(p.y + Math.sin(a) * d, 40, WORLD.h - 40);
   const roll = rand();
@@ -1484,6 +1878,15 @@ function ambientSpawn(dt) {
     type = roll < 0.24 ? 'crawler' : roll < 0.4 ? 'spitter' : roll < 0.54 ? 'flyer'
          : roll < 0.68 ? 'charger' : roll < 0.78 ? 'bomber' : roll < 0.86 ? 'sniper'
          : roll < 0.94 ? 'healer' : 'brood';
+  if (Game.hordeMode) {
+    const w = Game.horde.wave;
+    const pool = ['crawler', 'crawler', 'spitter', 'flyer'];
+    if (w >= 2) pool.push('bomber');
+    if (w >= 3) pool.push('charger', 'charger');
+    if (w >= 4) pool.push('sniper', 'healer');
+    if (w >= 5) pool.push('brood');
+    type = pool[(rand() * pool.length) | 0];
+  }
   if (dailyMod('chargers') && rand() < 0.4) type = 'charger';
   spawnEnemy(type, x, y);
   // pacotes: crawlers vêm em grupo
@@ -1505,8 +1908,16 @@ function updateEnemy(e, dt) {
   e.speed = baseSpeed * (Game.night ? 1.15 : 1) * (dailyMod('fast') ? 1.3 : 1);
 
   if (beh === 'chase') {
-    e.x += dx / d * e.speed * dt;
-    e.y += dy / d * e.speed * dt;
+    // investida curta quando chega perto: mata o "andar de ré pra sempre"
+    e.lungeT = Math.max(0, (e.lungeT || 0) - dt);
+    e.lungeBoost = Math.max(0, (e.lungeBoost || 0) - dt);
+    if (d < 175 && d > 40 && e.lungeT <= 0) {
+      e.lungeT = 2.2; e.lungeBoost = 0.45;
+      spawnParticle(e.x, e.y, e.color, 2.5, 0.3);
+    }
+    const csp = e.speed * (e.lungeBoost > 0 ? 1.9 : 1);
+    e.x += dx / d * csp * dt;
+    e.y += dy / d * csp * dt;
   } else if (beh === 'shoot') {
     const cfg = ENEMY_TYPES[e.type];
     if (d > cfg.range * 0.8) { e.x += dx / d * e.speed * dt; e.y += dy / d * e.speed * dt; }
@@ -1514,7 +1925,7 @@ function updateEnemy(e, dt) {
     e.shotT -= dt;
     if (e.shotT <= 0 && d < cfg.range) {
       e.shotT = cfg.shotCd;
-      fireEnemyBullet(e.x, e.y, Math.atan2(dy, dx), cfg.bSpeed, e.dmg * 0.8, e.corrupted ? '#c44dff' : '#ffb02e');
+      fireEnemyBullet(e.x, e.y, leadAngle(e, cfg.bSpeed), cfg.bSpeed, e.dmg * 0.8, e.corrupted ? '#c44dff' : '#ffb02e');
     }
   } else if (beh === 'strafe') {
     const cfg = ENEMY_TYPES[e.type];
@@ -1527,7 +1938,7 @@ function updateEnemy(e, dt) {
     e.shotT -= dt;
     if (e.shotT <= 0 && d < cfg.range * 1.6) {
       e.shotT = cfg.shotCd;
-      fireEnemyBullet(e.x, e.y, Math.atan2(dy, dx), cfg.bSpeed, e.dmg * 0.8, e.corrupted ? '#c44dff' : '#4ad7ff');
+      fireEnemyBullet(e.x, e.y, leadAngle(e, cfg.bSpeed), cfg.bSpeed, e.dmg * 0.8, e.corrupted ? '#c44dff' : '#4ad7ff');
     }
   } else if (beh === 'charge') {
     if (e.chargeState === 0) {           // aproxima
@@ -1595,7 +2006,7 @@ function updateEnemy(e, dt) {
       e.shotT -= dt;
       if (e.shotT <= 0 && d < cfg.range) {
         e.aimT = 1.2;
-        e.aimAng = Math.atan2(dy, dx);
+        e.aimAng = leadAngle(e, cfg.bSpeed);
         Sfx.tone(400, 0.3, 'sine', 0.06, 200);
       }
     }
@@ -1620,6 +2031,20 @@ function updateEnemy(e, dt) {
   }
   e.speed = baseSpeed;
 
+  // separação: hordas não se empilham no mesmo pixel
+  for (const o of Game.enemies) {
+    if (o === e) continue;
+    const sx = e.x - o.x, sy = e.y - o.y;
+    const lim = e.r + o.r - 4;
+    if (Math.abs(sx) > lim || Math.abs(sy) > lim) continue;
+    const sd = Math.hypot(sx, sy);
+    if (sd < lim && sd > 0.001) {
+      const push = (lim - sd) * 0.5;
+      e.x += sx / sd * push; e.y += sy / sd * push;
+    }
+  }
+  collideObstacles(e);
+
   e.x = clamp(e.x, 20, WORLD.w - 20);
   e.y = clamp(e.y, 20, WORLD.h - 20);
 
@@ -1628,6 +2053,15 @@ function updateEnemy(e, dt) {
     damagePlayer(e.dmg, e.x, e.y);
     e.contactT = 0.8;
   }
+}
+
+/* mira com interceptação: atira onde o jogador VAI estar */
+function leadAngle(e, bSpeed) {
+  const p = Game.player;
+  const t = Math.hypot(p.x - e.x, p.y - e.y) / bSpeed;
+  const tx = p.x + (p.velX || 0) * t * 0.85;
+  const ty = p.y + (p.velY || 0) * t * 0.85;
+  return Math.atan2(ty - e.y, tx - e.x);
 }
 
 function fireEnemyBullet(x, y, ang, speed, dmg, color) {
@@ -1640,6 +2074,8 @@ function fireEnemyBullet(x, y, ang, speed, dmg, color) {
 function killEnemy(e, idx, executed) {
   Game.enemies.splice(idx, 1);
   Game.kills++;
+  if (Game.kills === 1) checkAch('primeiro_sangue');
+  if (executed) Game.stats.exec = (Game.stats.exec || 0) + 1;
   Game.combo++; Game.comboT = 3;
   const mult = comboMult();
   const gained = e.score * mult * (executed ? 2 : 1);
@@ -1708,6 +2144,7 @@ function bomberExplode(e) {
 
 /* ════════════ FLOATERS (números de dano) ════════════ */
 function spawnFloater(x, y, txt, color) {
+  if (!SAVE.opts.dmgNums && /^[0-9]+$/.test(String(txt))) return;
   if (Game.floaters.length > 70) return;
   Game.floaters.push({ x, y, txt: String(txt), color, t: 0.8, max: 0.8 });
 }
@@ -1833,6 +2270,7 @@ function updateAllies(dt) {
     if (tgt) {
       const dx = tgt.x - a.x, dy = tgt.y - a.y, d = Math.hypot(dx, dy) || 1;
       a.x += dx / d * 190 * dt; a.y += dy / d * 190 * dt;
+      collideObstacles(a);
       if (a.hitT <= 0 && d < tgt.r + a.r + 4) {
         a.hitT = 0.5; tgt.hp -= 14;
         Sfx.hit();
@@ -1978,20 +2416,27 @@ function triggerBoss(idx) {
 }
 function spawnBoss(idx) {
   const cfg = BOSSES[idx];
-  const m = 1 + Game.partsCollected * 0.12;
+  const m = Game.hordeMode ? difficultyMult() * 0.55 : 1 + Game.partsCollected * 0.12;
+  let bx = cfg.x, by = cfg.y;
+  if (Game.hordeMode) {
+    // na horda o guardião vem até você
+    const p = Game.player, a = rand() * TAU;
+    bx = clamp(p.x + Math.cos(a) * 520, 120, WORLD.w - 120);
+    by = clamp(p.y + Math.sin(a) * 520, 120, WORLD.h - 120);
+  }
   Game.boss = {
-    idx, name: cfg.name, x: cfg.x, y: cfg.y,
+    idx, name: cfg.name, x: bx, y: by,
     hp: cfg.hp * m, maxHp: cfg.hp * m,
     r: cfg.r, color: cfg.color, final: !!cfg.final,
     phase: 1, phases: cfg.phases || 1,
     t: 0, atkT: 1.2, atk2T: 3, moveT: 0,
     state: 0, stT: 0, cvx: 0, cvy: 0,
-    anchor: { x: cfg.x, y: cfg.y },
-    tgx: cfg.x, tgy: cfg.y,
+    anchor: { x: bx, y: by },
+    tgx: bx, tgy: by,
     halfSaid: false,
   };
-  // a arena se fecha: barreira de Genesis ao redor do covil
-  Game.arena = { x: cfg.x, y: cfg.y, r: cfg.final ? 720 : 620 };
+  // a arena se fecha: barreira de Genesis ao redor do covil (não na horda)
+  Game.arena = Game.hordeMode ? null : { x: bx, y: by, r: cfg.final ? 720 : 620 };
   if (cfg.final) showQuote(ECO_QUOTES.spawn);
   document.getElementById('bossNameEl').textContent = cfg.name;
   document.getElementById('bossBarWrap').classList.add('visible');
@@ -2252,6 +2697,17 @@ function killBoss(b) {
   Game.bossKills++;
   Game.score += 1000 + b.idx * 250;
   Game.hitstop = Math.max(Game.hitstop, 0.12);
+  Game.slowmoT = 0.5;
+  if (navigator.vibrate) navigator.vibrate(120);
+  if (b.idx < 4) checkAch('guardiao');
+  // veteranos do primeiro jogo se revelam quando seus rivais caem
+  const unlock = UNLOCK_BY_BOSS[b.idx];
+  if (unlock && !SAVE.unlocks[unlock]) {
+    SAVE.unlocks[unlock] = true;
+    persistSave();
+    setTimeout(() => showHint('★ NOVO PERSONAGEM DESBLOQUEADO: ' + unlock.toUpperCase() + ' ★'), 2500);
+    if (SAVE.unlocks.felipe && SAVE.unlocks.titan && SAVE.unlocks.takeshi) checkAch('elenco');
+  }
   document.getElementById('bossBarWrap').classList.remove('visible');
   spawnBurst(b.x, b.y, b.color, 50);
   spawnBurst(b.x, b.y, '#ffffff', 30);
@@ -2293,8 +2749,10 @@ function killBoss(b) {
 /* ════════════ DANO AO JOGADOR ════════════ */
 function damagePlayer(dmg, fromX, fromY) {
   const p = Game.player;
-  if (p.invulnT > 0 || p.dashT > 0 || p.shieldT > 0) return;
+  // i-frames do dash só na primeira metade: esquivar exige timing
+  if (p.invulnT > 0 || p.dashT > 0.09 || p.shieldT > 0) return;
   if (p.char === 'titan') dmg *= 0.85;
+  if (navigator.vibrate) navigator.vibrate(40);
   p.hp -= dmg;
   p.invulnT = 0.7;
   Game.combo = 0; Game.comboT = 0;
@@ -2318,7 +2776,7 @@ function damagePlayer(dmg, fromX, fromY) {
 
 /* ════════════ PARTÍCULAS / PICKUPS ════════════ */
 function spawnParticle(x, y, color, size, life) {
-  if (Game.particles.length > 350) return;
+  if (Game.particles.length > (SAVE.opts.perf ? 120 : 350)) return;
   const a = rand() * TAU, s = 40 + rand() * 160;
   Game.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color, size, life, maxLife: life });
 }
@@ -2363,6 +2821,7 @@ function updatePickups(dt) {
 
 /* ════════════ FRAGMENTOS DA NAVE ════════════ */
 function updateParts() {
+  if (Game.hordeMode) return;
   const p = Game.player;
   for (const part of Game.parts) {
     if (part.collected) continue;
@@ -2397,6 +2856,7 @@ function nearestPart() {
   return best;
 }
 function updateObjective() {
+  if (Game.hordeMode) { setObjective('SOBREVIVA — ONDA ' + Game.horde.wave); return; }
   if (Game.canTakeOff) return;
   if (Game.shipRepaired) { setObjective('DERROTE O ECO DE GENESIS'); return; }
   if (Game.partsCollected >= 4) { setObjective('VOLTE À NAVE E PRESSIONE [E] PARA REPARÁ-LA'); return; }
@@ -2411,11 +2871,15 @@ function frame(now) {
   lastT = now;
   if (dt > 0.05) dt = 0.05;
 
+  pollGamepad();
   if (Game.state === 'cinematic') { updateCinematic(dt); renderCinematic(); return; }
   if (Game.state === 'play') {
     // hit-stop: congela a simulação por alguns ms ao matar
     if (Game.hitstop > 0) { Game.hitstop -= dt; render(); return; }
-    update(dt);
+    // slow-motion cinematográfico (morte de boss)
+    let udt = dt;
+    if (Game.slowmoT > 0) { Game.slowmoT -= dt; udt = dt * 0.35; }
+    update(udt);
   }
   if (['play', 'shop', 'pause', 'log', 'npc'].includes(Game.state)) render();
 }
@@ -2446,6 +2910,7 @@ function update(dt) {
     mx = TouchPad.move.dx;
     my = TouchPad.move.dy;
   }
+  if (GP.move) { mx = GP.move.x; my = GP.move.y; }
   const ml = Math.hypot(mx, my);
   if (ml > 0) { mx /= ml; my /= ml; }
   let spd = st.speed;
@@ -2464,12 +2929,13 @@ function update(dt) {
         Game.pools.push({ x: p.x, y: p.y, r: 18, maxR: 18, grow: false, life: 1.1, dmg: 22, warnT: 0, friendly: true, fire: true });
       }
     }
-    // lâminas de dash
-    if (p.upg.blade > 0) {
-      for (let j = Game.enemies.length - 1; j >= 0; j--) {
-        const e = Game.enemies[j];
-        if (e.lastDashHit !== p.dashId && dist2(p.x, p.y, e.x, e.y) < (e.r + p.r + 6) ** 2) {
-          e.lastDashHit = p.dashId;
+    // dash ofensivo: atravessar inimigo devolve recarga (+ dano com Lâminas)
+    for (let j = Game.enemies.length - 1; j >= 0; j--) {
+      const e = Game.enemies[j];
+      if (e.lastDashHit !== p.dashId && dist2(p.x, p.y, e.x, e.y) < (e.r + p.r + 6) ** 2) {
+        e.lastDashHit = p.dashId;
+        p.dashCd = Math.max(0, p.dashCd - 0.35);
+        if (p.upg.blade > 0) {
           const dmg = 30 * p.upg.blade;
           e.hp -= dmg; e.hitT = 0.1;
           Game.stats.dmg = (Game.stats.dmg || 0) + dmg;
@@ -2488,9 +2954,18 @@ function update(dt) {
   p.invulnT = Math.max(0, p.invulnT - dt);
   p.meleeCd = Math.max(0, p.meleeCd - dt);
   p.slashT = Math.max(0, p.slashT - dt);
+  // pântano ao sul: movimento lento
+  const inSwamp = p.y > WORLD.h - 950;
+  if (inSwamp) spd *= 0.78;
+  if (inSwamp !== !!Game._wasSwamp) {
+    Game._wasSwamp = inSwamp;
+    if (inSwamp) showHint('PÂNTANO — O LODO PRENDE SUAS BOTAS');
+  }
   const px0 = p.x, py0 = p.y;
   p.x = clamp(p.x + mx * spd * dt, p.r, WORLD.w - p.r);
   p.y = clamp(p.y + my * spd * dt, p.r, WORLD.h - p.r);
+  collideObstacles(p);
+  p.velX = (p.x - px0) / dt; p.velY = (p.y - py0) / dt;
   Game.stats.dist = (Game.stats.dist || 0) + Math.hypot(p.x - px0, p.y - py0);
   // a barreira da arena prende o jogador durante a luta de boss
   if (Game.arena) {
@@ -2512,11 +2987,25 @@ function update(dt) {
     if ((Game.time * 2 | 0) % 4 === 0) syncHpOnly();
   }
 
-  // mira e tiro: joystick virtual direito (mira + fogo automático) ou mouse
+  // mira e tiro: joystick direito (com aim assist), gamepad ou mouse
   p.shootT = Math.max(0, p.shootT - dt);
   if (TouchPad.aim.active) {
-    if (TouchPad.aim.mag > 0.1) p.aim = TouchPad.aim.ang;
+    if (TouchPad.aim.mag > 0.1) {
+      p.aim = TouchPad.aim.ang;
+      // aim assist suave (±8°) só no toque
+      let bestDa = 0.14, snap = 0;
+      for (const e of Game.enemies) {
+        if (dist2(p.x, p.y, e.x, e.y) > 700 * 700) continue;
+        let da = Math.atan2(e.y - p.y, e.x - p.x) - p.aim;
+        da = Math.atan2(Math.sin(da), Math.cos(da));
+        if (Math.abs(da) < bestDa) { bestDa = Math.abs(da); snap = da; }
+      }
+      p.aim += snap * 0.65;
+    }
     if (TouchPad.aim.mag > 0.35) shoot();
+  } else if (GP.aim !== null) {
+    p.aim = GP.aim;
+    if (GP.fire) shoot();
   } else {
     p.aim = Math.atan2(Mouse.y - (p.y - Game.cam.y), Mouse.x - (p.x - Game.cam.x));
     if (Mouse.down) shoot();
@@ -2545,6 +3034,40 @@ function update(dt) {
     }
   }
   if (cdTick) syncAbilities();
+
+  // música reage à situação
+  Music.state = Game.boss ? 'boss'
+    : Game.enemies.some(e => dist2(e.x, e.y, p.x, p.y) < 650 * 650) ? 'combat' : 'explore';
+
+  // ondas pontuais de pressão
+  if (!Game.boss && Game.bossIntroT <= 0) {
+    Game.surgeT -= dt;
+    if (Game.surgeT <= 0) {
+      Game.surgeT = 65 + rand() * 25;
+      showHint('⚠ ONDA DE FAUNA SE APROXIMA');
+      Sfx.tone(220, 0.4, 'sawtooth', 0.12, -60);
+      const baseA = pv => Math.atan2(p.velY || 0.01, p.velX || 0.01);
+      for (let k = 0; k < 7; k++) {
+        const a2 = (Math.hypot(p.velX || 0, p.velY || 0) > 60 ? baseA() : rand() * TAU) + (rand() - 0.5) * 2;
+        const dd2 = 650 + rand() * 250;
+        const sx2 = clamp(p.x + Math.cos(a2) * dd2, 40, WORLD.w - 40);
+        const sy2 = clamp(p.y + Math.sin(a2) * dd2, 40, WORLD.h - 40);
+        spawnEnemy(['crawler', 'crawler', 'flyer', 'bomber', 'spitter'][(rand() * 5) | 0], sx2, sy2);
+      }
+    }
+  }
+
+  // ninhos do norte: spawnam crawlers até serem destruídos
+  for (const ns of Game.nests) {
+    if (ns.hp <= 0) continue;
+    if (dist2(p.x, p.y, ns.x, ns.y) > 780 * 780) continue;
+    ns.t -= dt;
+    if (ns.t <= 0 && Game.enemies.length < 34) {
+      ns.t = 4.5;
+      spawnEnemy('crawler', ns.x + (rand() - 0.5) * 30, ns.y + (rand() - 0.5) * 30, rand() < corruptionChance());
+      spawnBurst(ns.x, ns.y, '#d96bff', 5);
+    }
+  }
 
   // ciclo dia/noite (~4 min; noite = fauna agressiva e mais corrupção)
   const ph = (Game.time % 240) / 240;
@@ -2580,7 +3103,8 @@ function update(dt) {
   checkLogs();
 
   // covil do verme colossal (missão do Kael)
-  if (Game.quests.verme && Game.quests.verme.state === 'active' && Game.quests.verme.progress < 1 &&
+  if (!Game.hordeMode &&
+      Game.quests.verme && Game.quests.verme.state === 'active' && Game.quests.verme.progress < 1 &&
       !Game.boss && Game.bossIntroT <= 0 &&
       dist2(p.x, p.y, WORM_LAIR.x, WORM_LAIR.y) < 560 * 560) {
     triggerBoss(5);
@@ -2606,6 +3130,61 @@ function update(dt) {
     }
   }
 
+  // aviso da névoa do leste
+  const inFog = p.x > WORLD.w - 1000;
+  if (inFog !== !!Game._wasFog) {
+    Game._wasFog = inFog;
+    if (inFog) showHint('NÉVOA DENSA — ALGO CAÇA AQUI');
+  }
+
+  // modo horda: ondas crescentes
+  if (Game.hordeMode) {
+    Game.horde.t -= dt;
+    if (Game.horde.t <= 0) {
+      Game.horde.wave++;
+      Game.horde.t = 30;
+      Game.score += Game.horde.wave * 100;
+      p.hp = Math.min(pStat(p).maxHp, p.hp + 15);
+      setObjective('SOBREVIVA — ONDA ' + Game.horde.wave);
+      showHint('ONDA ' + Game.horde.wave + ' — A FAUNA NÃO PERDOA');
+      Sfx.bossRoar();
+      syncHpOnly();
+      if (Game.horde.wave % 5 === 0 && !Game.boss && Game.bossIntroT <= 0) {
+        triggerBoss((rand() * 4) | 0);
+      }
+      if (Game.horde.wave >= 10) checkAch('horda10');
+    }
+  }
+
+  // tutorial jogado (primeira expedição)
+  if (Game.tut && !Game.hordeMode) {
+    const T = Game.tut;
+    if (T.step === 0) {
+      showHint(TouchPad.enabled ? 'ARRASTE O LADO ESQUERDO DA TELA PARA MOVER' : 'W A S D — MOVA-SE', true);
+      if ((Game.stats.dist || 0) > 180) T.step = 1;
+    } else if (T.step === 1) {
+      showHint(TouchPad.enabled ? 'LADO DIREITO: MIRE PARA ATIRAR' : 'MIRE COM O MOUSE E SEGURE O CLIQUE', true);
+      if ((Game.stats.shots || 0) > 3) T.step = 2;
+    } else if (T.step === 2) {
+      showHint(TouchPad.enabled ? 'BOTÃO DASH — ESQUIVA COM INVENCIBILIDADE' : 'ESPAÇO — DASH COM INVENCIBILIDADE', true);
+      if (p.dashId > 0) T.step = 3;
+    } else if (T.step === 3) {
+      showHint(TouchPad.enabled ? 'BOTÃO ⚔ — GOLPE CORPO A CORPO' : 'F — GOLPE CORPO A CORPO', true);
+      if (p.slashT > 0) T.step = 4;
+    } else {
+      Game.tut = null;
+      SAVE.tutorialDone = true;
+      persistSave();
+      showHint('SIGA A SETA AMARELA. BOA SORTE, PILOTO.');
+    }
+  }
+
+  // auto-save da expedição
+  if (!Game.hordeMode) {
+    Game.autoT -= dt;
+    if (Game.autoT <= 0) { Game.autoT = 10; saveRun(); }
+  }
+
   // aviso ao entrar numa cidade
   for (const c of CITIES) {
     if (!Game.cityHints[c.name] && dist2(p.x, p.y, c.x, c.y) < 430 * 430) {
@@ -2627,6 +3206,12 @@ function update(dt) {
     const b = Game.bullets[i];
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
     if (b.life <= 0 || b.x < 0 || b.y < 0 || b.x > WORLD.w || b.y > WORLD.h) { Game.bullets.splice(i, 1); continue; }
+    // rochas bloqueiam balas
+    if (bulletHitsObstacle(b)) {
+      spawnParticle(b.x, b.y, 'rgba(180,140,120,0.8)', 2.5, 0.25);
+      Game.bullets.splice(i, 1);
+      continue;
+    }
     let hit = false;
     // inimigos
     for (let j = Game.enemies.length - 1; j >= 0; j--) {
@@ -2634,6 +3219,9 @@ function update(dt) {
       if (b.hitSet && b.hitSet.has(e)) continue;
       if (dist2(b.x, b.y, e.x, e.y) < (e.r + b.r) * (e.r + b.r)) {
         e.hp -= b.dmg; e.hitT = 0.08;
+        // knockback visual do impacto
+        const bv = Math.hypot(b.vx, b.vy) || 1;
+        e.x += b.vx / bv * 5; e.y += b.vy / bv * 5;
         Game.stats.hits = (Game.stats.hits || 0) + 1;
         Game.stats.dmg = (Game.stats.dmg || 0) + b.dmg;
         spawnFloater(b.x, b.y - 8, Math.round(b.dmg), '#ffe8a0');
@@ -2658,6 +3246,28 @@ function update(dt) {
         spawnParticle(b.x, b.y, b.color, 3, 0.25);
         if (bo.hp <= 0) killBoss(bo);
         hit = true;
+      }
+    }
+    // ninhos destrutíveis do norte
+    if (!hit) {
+      for (const ns of Game.nests) {
+        if (ns.hp <= 0) continue;
+        if (dist2(b.x, b.y, ns.x, ns.y) < (ns.r + b.r) * (ns.r + b.r)) {
+          ns.hp -= b.dmg;
+          Sfx.hit();
+          spawnParticle(b.x, b.y, '#d96bff', 2.5, 0.25);
+          spawnFloater(b.x, b.y - 8, Math.round(b.dmg), '#ffe8a0');
+          if (ns.hp <= 0) {
+            Game.score += 40;
+            spawnBurst(ns.x, ns.y, '#d96bff', 18);
+            Sfx.explode();
+            spawnFloater(ns.x, ns.y - 26, 'NINHO DESTRUÍDO +40', '#ffd60a');
+            for (let k = 0; k < 4; k++)
+              Game.pickups.push({ kind: 'scrap', x: ns.x + (rand() - 0.5) * 30, y: ns.y + (rand() - 0.5) * 30, val: 1, life: 18, ph: rand() * TAU });
+          }
+          hit = true;
+          break;
+        }
       }
     }
     if (hit) {
@@ -2687,6 +3297,11 @@ function update(dt) {
     const b = Game.ebullets[i];
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
     if (b.life <= 0) { Game.ebullets.splice(i, 1); continue; }
+    if (bulletHitsObstacle(b)) {
+      spawnParticle(b.x, b.y, b.color, 2.5, 0.2);
+      Game.ebullets.splice(i, 1);
+      continue;
+    }
     if (dist2(b.x, b.y, p.x, p.y) < (p.r + b.r) * (p.r + b.r)) {
       damagePlayer(b.dmg, b.x, b.y);
       Game.ebullets.splice(i, 1);
@@ -2759,7 +3374,8 @@ function update(dt) {
 function render() {
   const p = Game.player;
   const cam = Game.cam;
-  const shx = (rand() - 0.5) * cam.shake, shy = (rand() - 0.5) * cam.shake;
+  const shAmp = cam.shake * (SAVE.opts.shake ? 1 : 0);
+  const shx = (rand() - 0.5) * shAmp, shy = (rand() - 0.5) * shAmp;
 
   ctx.fillStyle = '#0a0510';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2821,6 +3437,7 @@ function render() {
   drawEvent(tNow);
   drawLogs(tNow);
   drawNPCs(tNow);
+  drawNests(tNow);
 
   // pickups
   for (const k of Game.pickups) {
@@ -2951,6 +3568,18 @@ function render() {
     ng.addColorStop(0.7, `rgba(8,3,16,${Game.darkness * 0.65})`);
     ng.addColorStop(1, `rgba(8,3,16,${Game.darkness})`);
     ctx.fillStyle = ng;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ── névoa do leste: visão reduzida ──
+  const fog = clamp((p.x - (WORLD.w - 1150)) / 220, 0, 1) * 0.62;
+  if (fog > 0.02) {
+    const px = p.x - cam.x + shx, py = p.y - cam.y + shy;
+    const fg = ctx.createRadialGradient(px, py, 70, px, py, 270);
+    fg.addColorStop(0, 'rgba(120,125,145,0)');
+    fg.addColorStop(0.7, `rgba(120,125,145,${fog * 0.7})`);
+    fg.addColorStop(1, `rgba(110,115,135,${fog})`);
+    ctx.fillStyle = fg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
@@ -3252,6 +3881,35 @@ function drawLogs(tNow) {
     }
     ctx.restore();
     ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  }
+}
+
+function drawNests(tNow) {
+  const cam = Game.cam;
+  for (const ns of Game.nests) {
+    if (ns.hp <= 0) continue;
+    if (ns.x < cam.x - 60 || ns.x > cam.x + canvas.width + 60 || ns.y < cam.y - 60 || ns.y > cam.y + canvas.height + 60) continue;
+    ctx.save();
+    ctx.translate(ns.x, ns.y);
+    const sq = 1 + Math.sin(tNow * 2.2 + ns.x) * 0.06;
+    ctx.fillStyle = '#5e2a6e';
+    ctx.strokeStyle = '#d96bff';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(0, 2, ns.r * sq, ns.r * 0.75 / sq, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    // ovos pulsando
+    ctx.fillStyle = `rgba(255,170,255,${0.5 + 0.3 * Math.sin(tNow * 5 + ns.y)})`;
+    for (let i = 0; i < 3; i++) {
+      const a = i / 3 * TAU + tNow * 0.4;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 8, Math.sin(a) * 5, 4, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+    // barra de vida do ninho
+    if (ns.hp < ns.maxHp) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(ns.x - 20, ns.y - ns.r - 10, 40, 4);
+      ctx.fillStyle = '#d96bff';
+      ctx.fillRect(ns.x - 20, ns.y - ns.r - 10, 40 * clamp(ns.hp / ns.maxHp, 0, 1), 4);
+    }
   }
 }
 
@@ -3602,7 +4260,9 @@ function drawBoss(b, tNow) {
 
 function drawObjectiveArrow(p) {
   let tx, ty;
-  if (Game.canTakeOff || (Game.partsCollected >= 4 && !Game.shipRepaired)) { tx = SHIP_POS.x; ty = SHIP_POS.y; }
+  if (Game.hordeMode && !Game.boss) return;
+  if (Game.hordeMode) { tx = Game.boss.x; ty = Game.boss.y; }
+  else if (Game.canTakeOff || (Game.partsCollected >= 4 && !Game.shipRepaired)) { tx = SHIP_POS.x; ty = SHIP_POS.y; }
   else if (Game.boss) { tx = Game.boss.x; ty = Game.boss.y; }
   else {
     const part = nearestPart();
@@ -3942,6 +4602,7 @@ const UI = {
     Sfx.tone(660, 0.12, 'sine', 0.08, 100);
     if (Game.logsRead === LOGS.length) {
       Game.score += 500;
+      checkAch('arquivista');
       setTimeout(() => showHint('TODOS OS REGISTROS DA CALIBURN RECUPERADOS! +500'), 400);
     }
   },
@@ -3963,23 +4624,96 @@ const UI = {
     document.getElementById('storyScreen').classList.remove('active');
     this.showCharSelect(false);
   },
-  showCharSelect(forDaily) {
+  showCharSelect(forDaily, forHorde) {
     this._pendingDaily = forDaily ? this._dailyMods : null;
-    document.getElementById('charGrid').innerHTML = CHARACTERS.map(c => `
-      <div class="char-card" onclick="UI.pickChar('${c.id}')" style="border-color:${c.color}55;">
+    this._pendingHorde = !!forHorde;
+    document.getElementById('charGrid').innerHTML = CHARACTERS.map(c => {
+      if (!charUnlocked(c.id)) {
+        return `<div class="char-card" style="border-color:rgba(255,255,255,0.1);opacity:0.55;cursor:default;">
+          <div class="cc-name" style="color:rgba(255,255,255,0.35);">🔒 ${c.name}</div>
+          <div class="cc-title">${c.title}</div>
+          <div class="cc-desc" style="color:#ffd60a;">${CHAR_UNLOCK_HINT[c.id]}</div>
+        </div>`;
+      }
+      return `<div class="char-card" onclick="UI.pickChar('${c.id}')" style="border-color:${c.color}55;">
         <div class="cc-name" style="color:${c.color};text-shadow:0 0 14px ${c.color};">${c.name}</div>
         <div class="cc-title">${c.title}</div>
         <div class="cc-desc">${c.desc}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     document.getElementById('charScreen').classList.add('active');
   },
   pickChar(id) {
+    if (!charUnlocked(id)) return;
     Game.charId = id;
     document.getElementById('charScreen').classList.remove('active');
     const daily = this._pendingDaily;
+    const horde = this._pendingHorde;
+    this._pendingHorde = false;
     startRun();
     if (daily) Game.daily = { date: todayStr(), mods: daily };
+    if (horde) {
+      Game.hordeMode = true;
+      Game.horde = { wave: 1, t: 30 };
+      Game.tut = null;
+    }
     Sfx.tone(660, 0.1, 'sine', 0.1, 150);
+  },
+  startHorde() {
+    Sfx.init();
+    Game.daily = null;
+    document.getElementById('titleScreen').classList.remove('active');
+    this.showCharSelect(false, true);
+  },
+  continueRun() {
+    Sfx.init();
+    document.getElementById('titleScreen').classList.remove('active');
+    loadRun();
+  },
+  showOptions() {
+    this._optFrom = Game.state;
+    document.getElementById('pauseScreen').classList.remove('active');
+    document.getElementById('titleScreen').classList.remove('active');
+    this.renderOptions();
+    document.getElementById('optScreen').classList.add('active');
+  },
+  renderOptions() {
+    const o = SAVE.opts;
+    document.getElementById('volSlider').value = Math.round(o.vol * 100);
+    document.getElementById('volVal').textContent = Math.round(o.vol * 100) + '%';
+    document.getElementById('optShake').textContent = 'TREMOR DE TELA: ' + (o.shake ? 'LIGADO' : 'DESLIGADO');
+    document.getElementById('optDmg').textContent = 'NÚMEROS DE DANO: ' + (o.dmgNums ? 'LIGADO' : 'DESLIGADO');
+    document.getElementById('optPerf').textContent = 'MODO DESEMPENHO (SEM GLOW): ' + (o.perf ? 'LIGADO' : 'DESLIGADO');
+  },
+  setVol(v) {
+    SAVE.opts.vol = v / 100;
+    document.getElementById('volVal').textContent = v + '%';
+    persistSave();
+  },
+  toggleOpt(id) {
+    SAVE.opts[id] = SAVE.opts[id] ? 0 : 1;
+    persistSave();
+    this.renderOptions();
+    Sfx.tone(440, 0.06, 'square', 0.06);
+  },
+  closeOptions() {
+    document.getElementById('optScreen').classList.remove('active');
+    if (this._optFrom === 'pause') document.getElementById('pauseScreen').classList.add('active');
+    else if (this._optFrom === 'title') document.getElementById('titleScreen').classList.add('active');
+  },
+  showAch() {
+    const t = SAVE.totals || {};
+    document.getElementById('achTotals').textContent =
+      `ABATES TOTAIS: ${t.kills || 0} · EXPEDIÇÕES: ${t.runs || 0} · VITÓRIAS: ${t.wins || 0} · TEMPO: ${fmtTime(t.time || 0)}` +
+      (SAVE.hordeBest ? ` · MELHOR ONDA: ${SAVE.hordeBest}` : '');
+    document.getElementById('achList').innerHTML = ACHIEVEMENTS.map(a => {
+      const got = !!SAVE.ach[a.id];
+      return `<div class="stat-row" style="${got ? '' : 'opacity:0.4;'}">
+        <span>${got ? '🏆' : '🔒'} ${a.name} — <span style="font-family:Rajdhani;font-size:13px;">${a.desc}</span></span>
+        <span>${got ? '✓' : ''}</span></div>`;
+    }).join('');
+    document.getElementById('titleScreen').classList.remove('active');
+    document.getElementById('achScreen').classList.add('active');
   },
   showControls() {
     this._ctrlFrom = Game.state;
@@ -4121,7 +4855,7 @@ const UI = {
     lastT = performance.now();
   },
   toTitle() {
-    ['gameOverScreen', 'victoryScreen', 'pauseScreen', 'shopScreen', 'controlsScreen', 'storyScreen', 'logScreen', 'dailyScreen', 'charScreen', 'npcScreen']
+    ['gameOverScreen', 'victoryScreen', 'pauseScreen', 'shopScreen', 'controlsScreen', 'storyScreen', 'logScreen', 'dailyScreen', 'charScreen', 'npcScreen', 'optScreen', 'achScreen']
       .forEach(id => document.getElementById(id).classList.remove('active'));
     hideHud();
     Sfx.stopDrone();
@@ -4143,6 +4877,10 @@ function refreshTitle() {
     (en.good || en.dark)
       ? `FINAIS: ${en.good ? '✦ PARA CASA' : '· · ·'} — ${en.dark ? '◆ O NOVO ECO' : '· · ·'}`
       : '';
+  document.getElementById('contBtn').style.display = SAVE.run ? 'block' : 'none';
+  document.getElementById('hordeBtn').style.display = (en.good || en.dark) ? 'block' : 'none';
+  document.getElementById('achCount').textContent =
+    Object.keys(SAVE.ach || {}).length + '/' + ACHIEVEMENTS.length;
 }
 
 /* fundo animado simples da tela de título */

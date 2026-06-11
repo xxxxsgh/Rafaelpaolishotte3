@@ -33,10 +33,23 @@ com o mouse e explora um mundo aberto de 3600×3600.
 - **Progressão**: sucata como moeda, oficina com 7 melhorias e arsenal,
   habilidade ativa (Q) ganha de cada guardião derrotado, combo
   multiplicador, New Game+ e desafio diário com seed da data.
+- **Mundo vivo**: ~95 rochas sólidas que bloqueiam movimento e balas
+  (cover real), IA anti-kiting (mira com interceptação, investidas,
+  spawn direcional), regiões com identidade (pântano lento ao sul,
+  névoa cega ao leste, ninhos destrutíveis ao norte, oeste rochoso)
+  e ondas pontuais de pressão.
+- **Meta-progressão**: 3 personagens destrancáveis ao derrotar seus
+  rivais, 10 conquistas, estatísticas acumuladas, auto-save da run a
+  cada 10s com botão CONTINUAR, e Modo Horda infinito pós-zerar.
+- **Áudio**: música procedural via WebAudio com 3 estados (exploração,
+  combate, boss) + SFX sintetizados.
+- **Acessível**: controles mobile twin-stick com aim assist, suporte a
+  gamepad, menu de opções (volume, tremor de tela, números de dano,
+  modo desempenho sem glow) e tutorial jogado nos primeiros segundos.
 - **Extras**: minimapa, seta de objetivo, cinemática de queda, intro
-  narrativa, números de dano, hit-stop, SFX sintetizados via WebAudio,
-  high score em LocalStorage (key `rps2_save_v1`). Single-file,
-  zero dependências.
+  narrativa, números de dano, hit-stop, slow-motion na morte de boss,
+  vibração no Android, high score em LocalStorage (key `rps2_save_v1`).
+  Single-file, zero dependências.
 
 ## Rodar local
 
