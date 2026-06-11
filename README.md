@@ -3,6 +3,54 @@
 Space-shooter em HTML5 Canvas. Single-file (`index.html`), zero build step,
 zero dependências (exceto PeerJS via CDN, só pro modo Online).
 
+## 🪐 Sequência: Shooter 2 — Queda em Vermilion
+
+A continuação oficial está em **`shooter2.html`** (acessível pelo botão
+"SHOOTER 2" no menu principal). Após destruir Genesis Omega no primeiro
+jogo, a explosão abre uma fenda dimensional e a nave do piloto cai em
+**Vermilion-7**, um planeta fora de todas as cartas estelares.
+
+Diferente do original (nave, scroll vertical), o 2 é um **shooter
+top-down de visão de cima**: você anda a pé pelo planeta com WASD, mira
+com o mouse e explora um mundo aberto de 3600×3600.
+
+- **Missão**: recuperar os 4 fragmentos da nave nos extremos do planeta,
+  cada um guardado por um boss (Rainha do Enxame, Colosso Basáltico,
+  Apex, Hidra Ácida), reparar a nave e enfrentar o boss final —
+  **Eco de Genesis** (3 fases). Boss opcional: **Verme Colossal**.
+- **4 personagens jogáveis** do primeiro jogo: Marcelo, Felipe,
+  Takeshi e Titan, cada um com bônus próprios.
+- **Combate**: 4 armas com recarga ativa (estilo Gears), tiro carregado
+  perfurante, melee com execução, dash com i-frames e afterimage,
+  8 tipos de inimigos + variantes corrompidas, mini-chefes nomeados.
+- **Mundo aberto 4800×4800**: 2 cidades em ruínas, 3 NPCs com diálogos
+  e sidequests, 9 logs da expedição Caliburn, eventos dinâmicos
+  (tempestade de Genesis, carga de suprimentos, ninho desperto),
+  ciclo dia/noite e terreno que se corrompe conforme o progresso.
+- **Corrupção como recurso**: inimigos corrompidos dropam estilhaços
+  de Genesis que compram upgrades proibidos com maldições — 3+ pactos
+  travam o final bom (**2 finais**).
+- **Progressão**: sucata como moeda, oficina com 7 melhorias e arsenal,
+  habilidade ativa (Q) ganha de cada guardião derrotado, combo
+  multiplicador, New Game+ e desafio diário com seed da data.
+- **Mundo vivo**: ~95 rochas sólidas que bloqueiam movimento e balas
+  (cover real), IA anti-kiting (mira com interceptação, investidas,
+  spawn direcional), regiões com identidade (pântano lento ao sul,
+  névoa cega ao leste, ninhos destrutíveis ao norte, oeste rochoso)
+  e ondas pontuais de pressão.
+- **Meta-progressão**: 3 personagens destrancáveis ao derrotar seus
+  rivais, 10 conquistas, estatísticas acumuladas, auto-save da run a
+  cada 10s com botão CONTINUAR, e Modo Horda infinito pós-zerar.
+- **Áudio**: música procedural via WebAudio com 3 estados (exploração,
+  combate, boss) + SFX sintetizados.
+- **Acessível**: controles mobile twin-stick com aim assist, suporte a
+  gamepad, menu de opções (volume, tremor de tela, números de dano,
+  modo desempenho sem glow) e tutorial jogado nos primeiros segundos.
+- **Extras**: minimapa, seta de objetivo, cinemática de queda, intro
+  narrativa, números de dano, hit-stop, slow-motion na morte de boss,
+  vibração no Android, high score em LocalStorage (key `rps2_save_v1`).
+  Single-file, zero dependências.
+
 ## Rodar local
 
 Não precisa de bundler. Abre num servidor http simples:
