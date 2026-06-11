@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Rafa Paoli's Shooter 2 — Queda em Vermilion</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
@@ -19,7 +19,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: var(--dark); }
 body { font-family: 'Rajdhani', sans-serif; color: #ffe8e0; }
-canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshair; }
+canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshair; touch-action: none; }
 
 /* ── OVERLAY BASE ── */
 .overlay {
@@ -295,6 +295,41 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
   color: rgba(255,255,255,0.5); font-size: 14px; width: 38px; height: 34px;
   cursor: pointer;
 }
+
+/* ── CONTROLES MOBILE ── */
+#mobileControls {
+  position: fixed; right: 12px; bottom: 96px; z-index: 12;
+  display: none; grid-template-columns: repeat(2, 60px); gap: 10px;
+}
+body.touch-mode.hud-on #mobileControls { display: grid; }
+.mbtn {
+  width: 60px; height: 60px; border-radius: 50%;
+  border: 1.5px solid rgba(0,245,255,0.5);
+  background: rgba(10,5,16,0.55);
+  color: var(--cyan); font-family: 'Orbitron', monospace;
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.mbtn:active { background: rgba(0,245,255,0.25); }
+.mbtn.mb-dash { border-color: rgba(57,255,20,0.6); color: var(--neon-green); }
+.mbtn.mb-melee { border-color: rgba(255,255,255,0.5); color: #fff; }
+.mbtn.mb-ability { border-color: rgba(196,77,255,0.6); color: #c44dff; }
+.mbtn.mb-interact { border-color: rgba(255,214,10,0.6); color: var(--gold); }
+body.touch-mode #hudWeapons { left: 12px; transform: none; }
+body.touch-mode #hudAbilities { left: 12px; transform: none; bottom: 70px; }
+body.touch-mode #hudHint { bottom: 160px; }
+@media (pointer: coarse) {
+  .overlay { padding: 22px 20px; }
+}
+@media (max-width: 540px) {
+  #mobileControls { grid-template-columns: repeat(2, 48px); gap: 8px; right: 8px; bottom: 88px; }
+  .mbtn { width: 48px; height: 48px; font-size: 8px; }
+  #minimapWrap canvas { width: 100px; height: 100px; }
+  #hudObjective { max-width: 230px; padding: 6px 9px; }
+  #hudHp { width: 180px; }
+}
 </style>
 </head>
 <body>
@@ -344,6 +379,7 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
     <tr><td>P / ESC</td><td>Pausar</td></tr>
     <tr><td>M</td><td>Som ligado/desligado</td></tr>
   </table>
+  <p style="font-size:13px;color:rgba(0,245,255,0.7);margin-bottom:6px;">📱 NO CELULAR: joystick esquerdo move · joystick direito mira e atira sozinho · botões à direita para DASH, melee (⚔), habilidade (Q), recarga (R), interagir (E), trocar arma e pausar.</p>
   <p style="font-size:13px;color:rgba(255,232,224,0.5);">Derrote os guardiões nos 4 extremos do planeta, recupere os fragmentos da nave e escape de Vermilion-7.</p>
   <button class="btn" onclick="UI.closeControls()">VOLTAR</button>
 </div>
@@ -454,6 +490,18 @@ canvas#game { display: block; position: fixed; top: 0; left: 0; cursor: crosshai
 </div>
 
 <button id="muteBtn" onclick="Sfx.toggle()" title="Som (M)">🔊</button>
+
+<!-- CONTROLES MOBILE -->
+<div id="mobileControls">
+  <button class="mbtn mb-ability" id="mbQ">Q</button>
+  <button class="mbtn mb-dash" id="mbDash">DASH</button>
+  <button class="mbtn mb-melee" id="mbF">⚔</button>
+  <button class="mbtn" id="mbR">R</button>
+  <button class="mbtn mb-interact" id="mbE">E</button>
+  <button class="mbtn" id="mbW">ARMA</button>
+  <button class="mbtn" id="mbTab">TAB</button>
+  <button class="mbtn" id="mbPause">⏸</button>
+</div>
 
 <script>
 'use strict';
@@ -840,6 +888,102 @@ addEventListener('mouseup', e => {
   }
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ── TOQUE (twin-stick virtual) ── */
+const TouchPad = {
+  enabled: false,
+  move: { id: null, sx: 0, sy: 0, kx: 0, ky: 0, dx: 0, dy: 0, mag: 0, active: false },
+  aim:  { id: null, sx: 0, sy: 0, kx: 0, ky: 0, ang: 0, mag: 0, active: false },
+};
+const STICK_R = 58;
+function enableTouchMode() {
+  if (!TouchPad.enabled) {
+    TouchPad.enabled = true;
+    document.body.classList.add('touch-mode');
+  }
+}
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) enableTouchMode();
+
+canvas.addEventListener('touchstart', e => {
+  enableTouchMode();
+  Sfx.init();
+  for (const t of e.changedTouches) {
+    if (t.clientX < innerWidth / 2 && TouchPad.move.id === null) {
+      const m = TouchPad.move;
+      m.id = t.identifier; m.sx = m.kx = t.clientX; m.sy = m.ky = t.clientY;
+      m.dx = m.dy = m.mag = 0; m.active = true;
+    } else if (t.clientX >= innerWidth / 2 && TouchPad.aim.id === null) {
+      const a = TouchPad.aim;
+      a.id = t.identifier; a.sx = a.kx = t.clientX; a.sy = a.ky = t.clientY;
+      a.mag = 0; a.active = true;
+    }
+  }
+  if (Game.state === 'play') e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === TouchPad.move.id) {
+      const m = TouchPad.move;
+      let dx = t.clientX - m.sx, dy = t.clientY - m.sy;
+      const d = Math.hypot(dx, dy);
+      if (d > STICK_R) { dx = dx / d * STICK_R; dy = dy / d * STICK_R; }
+      m.kx = m.sx + dx; m.ky = m.sy + dy;
+      m.mag = Math.min(1, d / STICK_R);
+      m.dx = d > 0 ? dx / STICK_R : 0;
+      m.dy = d > 0 ? dy / STICK_R : 0;
+    } else if (t.identifier === TouchPad.aim.id) {
+      const a = TouchPad.aim;
+      let dx = t.clientX - a.sx, dy = t.clientY - a.sy;
+      const d = Math.hypot(dx, dy);
+      if (d > 0) a.ang = Math.atan2(dy, dx);
+      a.mag = Math.min(1, d / STICK_R);
+      if (d > STICK_R) { dx = dx / d * STICK_R; dy = dy / d * STICK_R; }
+      a.kx = a.sx + dx; a.ky = a.sy + dy;
+    }
+  }
+  if (Game.state === 'play') e.preventDefault();
+}, { passive: false });
+
+function touchEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === TouchPad.move.id) { TouchPad.move.id = null; TouchPad.move.active = false; TouchPad.move.mag = 0; }
+    if (t.identifier === TouchPad.aim.id)  { TouchPad.aim.id = null;  TouchPad.aim.active = false;  TouchPad.aim.mag = 0; }
+  }
+}
+canvas.addEventListener('touchend', touchEnd);
+canvas.addEventListener('touchcancel', touchEnd);
+
+/* botões mobile */
+function bindMBtn(id, fn) {
+  const el = document.getElementById(id);
+  el.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); fn(); }, { passive: false });
+  el.addEventListener('mousedown', e => { e.preventDefault(); fn(); });
+}
+function mobileCycleWeapon() {
+  const p = Game.player;
+  if (!p) return;
+  for (let k = 1; k <= 4; k++) {
+    const i = (p.weapon + k) % 4;
+    if (p.owned[i]) { switchWeapon(i); return; }
+  }
+}
+bindMBtn('mbDash',  () => { if (Game.state === 'play') tryDash(); });
+bindMBtn('mbF',     () => { if (Game.state === 'play') tryMelee(); });
+bindMBtn('mbQ',     () => { if (Game.state === 'play') useAbility(); });
+bindMBtn('mbR',     () => { if (Game.state === 'play') attemptOrStartReload(); });
+bindMBtn('mbE',     () => {
+  if (Game.state === 'play') tryInteract();
+  else if (Game.state === 'npc') UI.npcNext();
+  else if (Game.state === 'log') UI.closeLog();
+  else if (Game.state === 'shop') UI.closeShop();
+});
+bindMBtn('mbW',     mobileCycleWeapon);
+bindMBtn('mbTab',   () => { if (Game.state === 'play') cycleAbility(); });
+bindMBtn('mbPause', () => {
+  if (Game.state === 'play') UI.pause();
+  else if (Game.state === 'pause') UI.resume();
+});
 
 /* ════════════ TERRENO (pré-renderizado) ════════════ */
 const TERRAIN_SCALE = 0.5;
@@ -1236,6 +1380,7 @@ function shoot() {
   const st = pStat(p);
   p.shootT = w.cd * st.fireMult;
   if (w.mag) { p.magAmmo[p.weapon]--; syncHud(); }
+  Game.stats.shots = (Game.stats.shots || 0) + w.pellets;
   for (let i = 0; i < w.pellets; i++) {
     const a = p.aim + (rand() - 0.5) * 2 * w.spread + (w.pellets > 1 ? (i - (w.pellets - 1) / 2) * 0.09 : 0);
     Game.bullets.push({
@@ -2291,12 +2436,16 @@ function update(dt) {
     }
   }
 
-  // movimento
+  // movimento (teclado ou joystick virtual esquerdo)
   let mx = 0, my = 0;
   if (Keys.KeyW || Keys.ArrowUp) my -= 1;
   if (Keys.KeyS || Keys.ArrowDown) my += 1;
   if (Keys.KeyA || Keys.ArrowLeft) mx -= 1;
   if (Keys.KeyD || Keys.ArrowRight) mx += 1;
+  if (TouchPad.move.active && TouchPad.move.mag > 0.12) {
+    mx = TouchPad.move.dx;
+    my = TouchPad.move.dy;
+  }
   const ml = Math.hypot(mx, my);
   if (ml > 0) { mx /= ml; my /= ml; }
   let spd = st.speed;
@@ -2363,10 +2512,15 @@ function update(dt) {
     if ((Game.time * 2 | 0) % 4 === 0) syncHpOnly();
   }
 
-  // mira e tiro (mouse em coordenadas de tela vs. player em coordenadas de mundo)
-  p.aim = Math.atan2(Mouse.y - (p.y - Game.cam.y), Mouse.x - (p.x - Game.cam.x));
+  // mira e tiro: joystick virtual direito (mira + fogo automático) ou mouse
   p.shootT = Math.max(0, p.shootT - dt);
-  if (Mouse.down) shoot();
+  if (TouchPad.aim.active) {
+    if (TouchPad.aim.mag > 0.1) p.aim = TouchPad.aim.ang;
+    if (TouchPad.aim.mag > 0.35) shoot();
+  } else {
+    p.aim = Math.atan2(Mouse.y - (p.y - Game.cam.y), Mouse.x - (p.x - Game.cam.x));
+    if (Mouse.down) shoot();
+  }
   // tiro carregado (botão direito segurado)
   if (Mouse.rdown) p.chargeT += dt;
   // recarga em andamento
@@ -2827,6 +2981,21 @@ function render() {
     cg.addColorStop(1, `rgba(255,20,20,${pulse})`);
     ctx.fillStyle = cg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ── joysticks virtuais (mobile) ──
+  if (TouchPad.enabled) {
+    for (const s of [TouchPad.move, TouchPad.aim]) {
+      if (!s.active) continue;
+      const col = s === TouchPad.aim ? '255,78,46' : '0,245,255';
+      ctx.strokeStyle = `rgba(${col},0.35)`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(s.sx, s.sy, STICK_R, 0, TAU); ctx.stroke();
+      ctx.fillStyle = `rgba(${col},0.15)`;
+      ctx.beginPath(); ctx.arc(s.sx, s.sy, STICK_R, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(${col},0.55)`;
+      ctx.beginPath(); ctx.arc(s.kx, s.ky, 24, 0, TAU); ctx.fill();
+    }
   }
 
   // névoa de vinheta do mundo
