@@ -1,5 +1,22 @@
 # Changelog
 
+## Tênis Star ⭐ v1.0 (branch `claude/mobile-tennis-game-m9e0da`)
+
+Novo jogo standalone em `tennis/` — tênis arcade mobile inspirado nos
+clássicos estilo Mario Tennis. Canvas puro, zero dependências.
+
+- Quadra em pseudo-3D com projeção em perspectiva, torcida animada e bandeirinhas.
+- 4 personagens com stats (velocidade / força / alcance) e visual chibi próprio.
+- Golpes: flat, top spin, lob, deixadinha + golpe especial com medidor de energia.
+- Física da bola com altura (z), gravidade, quique, rede e bola fora.
+- Pontuação real de tênis (15/30/40/vantagem/deuce), games, partida em melhor de 5 games.
+- IA com 3 dificuldades: tempo de reação, erro de leitura/mira e tática
+  (cruza a bola longe do jogador, lob em quem cola na rede, deixadinha em quem fica no fundo).
+- Fadiga de rali estilo arcade: depois de 8 batidas a precisão dos dois cai,
+  garantindo que todo ponto termina.
+- Controles touch: analógico virtual flutuante + botões de efeito; suporte a teclado no desktop.
+- Áudio sintetizado (Web Audio), vibração háptica, partículas e screen shake.
+
 ## v3.0 — Phase 1-4 refactor pass (branch `claude/shooter-ultimate-phase1-5EW9c`)
 
 ### Phase 1 — Game feel & juice

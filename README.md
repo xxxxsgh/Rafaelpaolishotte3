@@ -41,6 +41,7 @@ Acessa `http://localhost:8080/`.
 | `js/15-expansion-tail.js` | Final content + boost + gap-filler. |
 | `sw.js` | Service Worker (cacheia todos os 15 chunks). |
 | `preview/` | Demos standalone (testáveis isolados — usados pra QA mobile). |
+| `tennis/` | **Tênis Star ⭐** — jogo de tênis arcade mobile (veja abaixo). |
 | `README.md` / `CHANGELOG.md` | Documentação. |
 
 O JS dentro de `index.html` está organizado por seções marcadas com
@@ -104,6 +105,31 @@ importSave();   // file picker, valida + migra + recarrega
   com o código de gameplay (truque via `Object.defineProperty`).
 - **Adaptive quality** — degrada partículas/shake automaticamente sob
   FPS baixo sustentado.
+
+## Tênis Star ⭐ (`tennis/`)
+
+Jogo de tênis arcade pra mobile, inspirado nos clássicos estilo
+Mario Tennis. Independente do shooter: `tennis/index.html` +
+`tennis/game.js`, canvas puro, zero dependências, zero build.
+
+Acessa em `http://localhost:8080/tennis/` (ou `/tennis/` no GitHub Pages).
+
+- **4 personagens** com arquétipos diferentes — RAFA (equilibrado),
+  LUMA (velocista), BRUTUS (potência) e ZIZI (malandra) — com stats de
+  velocidade, força e alcance.
+- **Golpes**: normal, top spin, lob e deixadinha (botões on-screen);
+  a mira segue a direção em que você está correndo na hora da batida.
+- **Golpe especial ⭐** — encha o medidor acertando bolas e dispare um
+  smash com rastro de arco-íris e screen shake.
+- **Placar de verdade**: 15/30/40, vantagem, games — primeiro a 3 games
+  leva a partida.
+- **3 dificuldades** de IA, com tempo de reação e erro de leitura que
+  escalam (no difícil ela antecipa, cruza a bola e castiga quem fica
+  na rede com lob).
+- **Controles**: arrasta pra correr (analógico virtual flutuante),
+  toque pra sacar. No desktop: setas/WASD + `Z` top spin, `X` lob,
+  `C` deixadinha, `V` especial, espaço saca.
+- Áudio 100% sintetizado via Web Audio, vibração háptica nos golpes.
 
 ## Créditos
 
