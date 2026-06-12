@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1A0508">
+<title>4a1 - Quatro a Um</title>
+<!-- =====================================================================
+     4a1 - QUATRO A UM
+     Versao Fluminense do viral "7a0". Arquivo unico, zero dependencias.
+     Secoes: THEME/CSS - DATABASE - DRAFT - SIMULACAO - UI - SHARE CODE
+     ===================================================================== -->
+<style>
+/* ====================== THEME / CSS ====================== */
+:root{
+  --bg-0:#1A0508;
+  --bg-1:#240A0F;
+  --green:#006341;     /* verde Fluminense */
+  --green-2:#04794f;
+  --grena:#7A1525;     /* grena */
+  --grena-d:#4d0d18;
+  --gold:#C9A227;      /* dourado: conquistas */
+  --ink:#F5F0EA;
+  --mut:#c9b4b8;
+  --cell:#160407;
+  --line:rgba(245,240,234,.14);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:linear-gradient(180deg,var(--bg-1) 0%,var(--bg-0) 60%,#0d0305 100%);
+  background-attachment:fixed;
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.45;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+.cond{
+  font-family:"Arial Narrow","Helvetica Neue Condensed","Roboto Condensed",Impact,sans-serif;
+  font-weight:800;letter-spacing:-.02em;
+}
+.wrap{max-width:760px;margin:0 auto;padding:0 18px 60px}
+a{color:var(--green-2);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:0;color:inherit}
+.btn{
+  min-height:48px;padding:0 22px;border-radius:12px;font-size:17px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary{background:var(--green);color:#fff}
+.btn-primary:active{background:var(--green-2)}
+.btn-outline{background:transparent;border:1.5px solid var(--grena);color:var(--ink)}
+.btn-ghost{background:rgba(245,240,234,.06);border:1px solid var(--line)}
+.badge{font-size:11px;font-weight:800;background:var(--gold);color:#231a00;border-radius:999px;padding:2px 8px;letter-spacing:0}
+.screen{display:none;animation:fade .35s ease}
+.screen.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---- topbar ---- */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 0;gap:10px}
+.seal{font-size:11px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:5px 11px;letter-spacing:.02em}
+.topnav{display:flex;gap:16px;font-size:14px;color:var(--mut)}
+.topnav span{cursor:pointer}
+
+/* ---- placar marca ---- */
+.scoreboard{display:flex;justify-content:center;gap:10px;margin:14px 0 8px}
+.score-cell{
+  background:var(--cell);border:1px solid var(--grena-d);border-radius:14px;
+  padding:14px 26px;box-shadow:inset 0 0 30px rgba(0,0,0,.6);
+}
+.score-num{
+  font-family:"Arial Narrow","Roboto Condensed",monospace;font-weight:800;
+  font-size:clamp(64px,18vw,120px);line-height:.9;color:var(--green);
+  text-shadow:0 0 18px rgba(0,99,65,.55);letter-spacing:-.04em;
+}
+.score-colon{display:flex;align-items:center;font-size:clamp(48px,12vw,90px);font-weight:800;color:var(--green)}
+.score-colon span{animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:.12}}
+
+h1.hero{
+  font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;letter-spacing:-.03em;
+  font-size:clamp(40px,12.5vw,84px);line-height:.92;margin:18px 0 12px;color:var(--ink);
+}
+.sub{color:var(--mut);font-size:16px;max-width:540px}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin:22px 0 10px}
+
+/* ---- faixa de camisas ---- */
+.jerseys{display:flex;gap:10px;overflow-x:auto;padding:14px 2px 18px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.jerseys::-webkit-scrollbar{height:6px}
+.jerseys::-webkit-scrollbar-thumb{background:var(--grena);border-radius:6px}
+.jcard{
+  scroll-snap-align:start;flex:0 0 auto;min-width:78px;text-align:center;
+  background:linear-gradient(180deg,var(--grena) 0%,var(--grena-d) 100%);
+  border:1px solid rgba(201,162,39,.18);border-radius:12px;padding:10px 8px;
+}
+.jnum{font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;font-size:34px;color:#7fffce;line-height:1}
+.jname{font-size:12px;color:#fbe9ec;margin-top:4px;white-space:nowrap}
+
+/* ---- 3 passos ---- */
+.steps{display:grid;gap:14px;margin:28px 0}
+.step{display:flex;gap:16px;align-items:flex-start;border-top:1px solid var(--line);padding-top:16px}
+.step-n{font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;font-size:46px;color:var(--green);line-height:.8;min-width:62px}
+.step h3{margin:0 0 2px;font-size:18px}
+.step p{margin:0;color:var(--mut);font-size:14px}
+
+.statline{border-top:1px solid var(--line);margin-top:24px;padding-top:16px;color:var(--mut);font-size:13px}
+.foot{margin-top:28px;color:#8d7479;font-size:12px;text-align:center}
+.sectitle{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--green-2);font-weight:800;margin:26px 0 6px}
+
+/* ====================== CRESTA / ESCUDO CSS ====================== */
+.crest{width:54px;height:54px;border-radius:50%;overflow:hidden;flex:0 0 auto;
+  background:linear-gradient(115deg,var(--green) 0 33%,#f5f0ea 33% 66%,var(--grena) 66% 100%);
+  border:2px solid var(--gold);box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.crest.lg{width:74px;height:74px}
+
+/* ====================== DICE 3D ====================== */
+.dice-stage{perspective:700px;width:120px;height:120px;margin:8px auto 18px}
+.dice{position:relative;width:120px;height:120px;transform-style:preserve-3d;transition:transform .1s}
+.dice.rolling{animation:roll 1.05s cubic-bezier(.3,.7,.4,1) forwards}
+@keyframes roll{
+  0%{transform:rotateX(0) rotateY(0)}
+  100%{transform:rotateX(720deg) rotateY(1080deg)}
+}
+.face{position:absolute;width:120px;height:120px;background:var(--cell);border:2px solid var(--grena);
+  border-radius:16px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  padding:14px;box-shadow:inset 0 0 22px rgba(0,0,0,.7)}
+.pip{width:16px;height:16px;background:var(--green);border-radius:50%;align-self:center;justify-self:center;box-shadow:0 0 8px rgba(0,99,65,.7)}
+.f1{transform:translateZ(60px)}
+.f2{transform:rotateY(90deg) translateZ(60px)}
+.f3{transform:rotateY(180deg) translateZ(60px)}
+.f4{transform:rotateY(-90deg) translateZ(60px)}
+.f5{transform:rotateX(90deg) translateZ(60px)}
+.f6{transform:rotateX(-90deg) translateZ(60px)}
+
+/* ====================== ELENCO / DRAFT ====================== */
+.panel{background:rgba(22,4,7,.6);border:1px solid var(--grena-d);border-radius:16px;padding:16px;margin:14px 0}
+.elenco-card{display:flex;gap:14px;align-items:center;background:linear-gradient(180deg,var(--grena-d),var(--cell));
+  border:1px solid var(--grena);border-radius:14px;padding:14px}
+.elenco-card h2{margin:0;font-size:20px}
+.elenco-card .desc{color:var(--gold);font-size:13px;font-weight:700}
+.draft-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.target-pos{font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;font-size:30px;color:var(--green)}
+.progress{font-size:13px;color:var(--mut)}
+.plist{display:grid;gap:8px;margin-top:14px}
+.prow{display:flex;align-items:center;gap:12px;background:rgba(245,240,234,.04);border:1px solid var(--line);
+  border-radius:12px;padding:10px 12px;cursor:pointer;transition:.15s}
+.prow:active{transform:scale(.99)}
+.prow.match{border-color:rgba(0,99,65,.5);background:rgba(0,99,65,.10)}
+.prow.dim{opacity:.38}
+.prow.used{opacity:.22;pointer-events:none}
+.ppos{font-size:11px;font-weight:800;color:var(--mut);min-width:34px;letter-spacing:.04em}
+.pname{flex:1;font-weight:600}
+.prate{font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;font-size:20px;
+  background:var(--green);color:#fff;border-radius:9px;padding:2px 10px;min-width:42px;text-align:center}
+.hint{font-size:12px;color:var(--mut);margin-top:8px}
+
+/* ====================== CAMPO ====================== */
+.field{position:relative;width:100%;max-width:420px;margin:14px auto;aspect-ratio:7/10;border-radius:16px;
+  background:
+    radial-gradient(circle at 50% 50%,rgba(255,255,255,.05),transparent 60%),
+    repeating-linear-gradient(0deg,#063e1f 0 10%,#05381c 10% 20%);
+  border:2px solid rgba(245,240,234,.25);overflow:hidden}
+.field:before,.field:after{content:"";position:absolute;border:2px solid rgba(255,255,255,.28)}
+.field:before{left:0;right:0;top:50%;height:0;border-width:2px 0 0}
+.field:after{left:25%;right:25%;height:18%;border-bottom:0;border-radius:0}
+.center-circle{position:absolute;left:50%;top:50%;width:30%;aspect-ratio:1;border:2px solid rgba(255,255,255,.28);
+  border-radius:50%;transform:translate(-50%,-50%)}
+.spot{position:absolute;transform:translate(-50%,-50%);text-align:center;width:64px}
+.shirt{width:42px;height:42px;margin:0 auto;border-radius:9px 9px 12px 12px;position:relative;
+  background:linear-gradient(180deg,var(--grena) 0 33%,#f3ede7 33% 66%,var(--green) 66% 100%);
+  border:1px solid rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;
+  font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;font-size:16px;color:#1a0508;
+  box-shadow:0 3px 8px rgba(0,0,0,.5)}
+.spot .nm{font-size:10px;margin-top:3px;color:#fff;text-shadow:0 1px 3px #000;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.ovbox{position:absolute;top:8px;right:8px;background:var(--cell);border:1px solid var(--grena);border-radius:10px;
+  padding:6px 10px;text-align:center;z-index:3}
+.ovbox .lab{font-size:9px;color:var(--mut);letter-spacing:.12em}
+.ovbox .val{font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;font-size:26px;color:var(--green);line-height:1}
+
+.formrow{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.formchip{padding:10px 16px;border-radius:11px;border:1.5px solid var(--grena);background:transparent;font-weight:700;min-height:44px}
+.formchip.sel{background:var(--green);border-color:var(--green);color:#fff}
+
+/* ====================== SIMULACAO ====================== */
+.matchrow{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--cell);
+  border:1px solid var(--grena-d);border-radius:12px;padding:12px 14px;margin:8px 0;
+  opacity:0;transform:translateY(6px);animation:reveal .4s forwards}
+@keyframes reveal{to{opacity:1;transform:none}}
+.mfase{font-size:11px;color:var(--gold);font-weight:800;letter-spacing:.06em;min-width:62px}
+.mteams{flex:1;display:flex;align-items:center;justify-content:center;gap:14px;font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;font-size:18px}
+.mteams .me{color:var(--green)}
+.mteams .op{color:var(--mut)}
+.mscore{font-family:"Arial Narrow","Roboto Condensed",monospace;font-weight:800;font-size:30px;
+  background:#000;border-radius:8px;padding:2px 12px;color:#7fffce;min-width:84px;text-align:center;letter-spacing:.06em}
+.win{color:#7fffce}.loss{color:#ff8a8a}
+
+/* ====================== TELA FINAL ====================== */
+.final-gold{text-align:center;padding:30px 6px}
+.final-gold.lit{background:radial-gradient(circle at 50% 30%,rgba(201,162,39,.22),transparent 70%)}
+.final-num{font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;
+  font-size:clamp(64px,22vw,150px);color:var(--gold);text-shadow:0 0 30px rgba(201,162,39,.6);line-height:.9}
+.final-title{font-family:"Arial Narrow","Roboto Condensed",sans-serif;font-weight:800;letter-spacing:-.01em;
+  font-size:clamp(26px,7vw,44px);margin:8px 0}
+.gold .final-title{color:var(--gold)}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+.conf{position:absolute;width:9px;height:14px;top:-20px;border-radius:2px;will-change:transform}
+
+/* ---- share code ---- */
+textarea,input.code{width:100%;background:var(--cell);color:var(--ink);border:1px solid var(--grena-d);
+  border-radius:10px;padding:12px;font-family:monospace;font-size:13px;resize:vertical}
+.copyok{color:var(--green-2);font-size:13px;font-weight:700;margin-left:8px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.center{text-align:center}
+</style>
+</head>
+<body>
+<div id="confetti"></div>
+<div class="wrap">
+
+  <!-- ===================== LANDING ===================== -->
+  <section id="screen-landing" class="screen active">
+    <div class="topbar">
+      <div class="seal">Copa Tricolor dos sonhos &middot; 1975 &mdash; 2025</div>
+      <nav class="topnav"><span onclick="alert('Perfil tricolor em breve.')">Perfil</span><span onclick="alert('Ajustes em breve.')">Ajustes &#9662;</span></nav>
+    </div>
+
+    <div class="scoreboard">
+      <div class="score-cell"><div class="score-num">4</div></div>
+      <div class="score-colon"><span>:</span></div>
+      <div class="score-cell"><div class="score-num">1</div></div>
+    </div>
+
+    <h1 class="hero">Role o dado.<br>Monte seu Flu<br>dos sonhos</h1>
+    <p class="sub">Role o dado: sai um elenco historico do Fluminense. Escale um craque que esteve la, complete os 11 e simule &mdash; seu time faz 4 a 1 no Flamengo?</p>
+
+    <div class="cta">
+      <button class="btn btn-primary" onclick="goFormation()">Jogar agora &rarr;</button>
+      <button class="btn btn-outline" onclick="alert('Modo com amigos em breve.')">Com amigos <span class="badge">Novo</span></button>
+    </div>
+
+    <div class="sectitle">As lendas</div>
+    <div class="jerseys" id="jerseys"></div>
+
+    <div class="sectitle">Como funciona</div>
+    <div class="steps">
+      <div class="step"><div class="step-n">01</div><div><h3>Role</h3><p>Sorteia um elenco e uma temporada do Flu.</p></div></div>
+      <div class="step"><div class="step-n">02</div><div><h3>Monte</h3><p>Escale um craque que jogou ali.</p></div></div>
+      <div class="step"><div class="step-n">03</div><div><h3>Simule</h3><p>Veja se seu time faz 4 a 1.</p></div></div>
+    </div>
+
+    <div class="statline">12 temporadas &middot; 12 elencos &middot; 190+ jogadores &middot; Discorda de alguma avaliacao?</div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="show('screen-load')">Carregar codigo</button>
+    </div>
+
+    <div class="foot">4a1 &mdash; Quatro a Um &middot; monte &middot; simule &middot; 4 a 1</div>
+  </section>
+
+  <!-- ===================== FORMACAO ===================== -->
+  <section id="screen-formation" class="screen">
+    <div class="topbar"><div class="seal" onclick="show('screen-landing')">&larr; Voltar</div><div class="topnav"><span>Escolha o esquema</span></div></div>
+    <h1 class="hero" style="font-size:clamp(34px,10vw,60px)">Escolha<br>a formacao</h1>
+    <p class="sub">O esquema define as 11 vagas que voce vai preencher no draft.</p>
+    <div class="formrow" id="formrow"></div>
+    <div class="actions"><button class="btn btn-primary" onclick="startDraft()">Iniciar draft &rarr;</button></div>
+  </section>
+
+  <!-- ===================== DRAFT ===================== -->
+  <section id="screen-draft" class="screen">
+    <div class="topbar"><div class="seal" onclick="confirmQuit()">&larr; Sair</div><div class="topnav"><span class="progress" id="progress"></span></div></div>
+    <div class="draft-head">
+      <div>Vaga atual: <span class="target-pos" id="targetPos">GOL</span></div>
+    </div>
+
+    <div id="diceArea" class="center">
+      <div class="dice-stage"><div class="dice" id="dice">
+        <div class="face f1"><div class="pip" style="grid-area:2/2"></div></div>
+        <div class="face f2"><div class="pip" style="grid-area:1/1"></div><div class="pip" style="grid-area:3/3"></div></div>
+        <div class="face f3"><div class="pip" style="grid-area:1/1"></div><div class="pip" style="grid-area:2/2"></div><div class="pip" style="grid-area:3/3"></div></div>
+        <div class="face f4"><div class="pip" style="grid-area:1/1"></div><div class="pip" style="grid-area:1/3"></div><div class="pip" style="grid-area:3/1"></div><div class="pip" style="grid-area:3/3"></div></div>
+        <div class="face f5"><div class="pip" style="grid-area:1/1"></div><div class="pip" style="grid-area:1/3"></div><div class="pip" style="grid-area:2/2"></div><div class="pip" style="grid-area:3/1"></div><div class="pip" style="grid-area:3/3"></div></div>
+        <div class="face f6"><div class="pip" style="grid-area:1/1"></div><div class="pip" style="grid-area:1/3"></div><div class="pip" style="grid-area:2/1"></div><div class="pip" style="grid-area:2/3"></div><div class="pip" style="grid-area:3/1"></div><div class="pip" style="grid-area:3/3"></div></div>
+      </div></div>
+      <button class="btn btn-primary" id="rollBtn" onclick="rollDice()">Rolar o dado</button>
+    </div>
+
+    <div id="elencoArea" style="display:none">
+      <div class="elenco-card">
+        <div class="crest lg"></div>
+        <div><h2 id="elNome"></h2><div class="desc" id="elDesc"></div></div>
+      </div>
+      <div class="plist" id="plist"></div>
+      <p class="hint">Jogadores fora da posicao aparecem esmaecidos (entram com -8 de rating). Escolha um para a vaga.</p>
+    </div>
+  </section>
+
+  <!-- ===================== CAMPO ===================== -->
+  <section id="screen-field" class="screen">
+    <div class="topbar"><div class="seal" onclick="show('screen-landing')">&larr; Inicio</div><div class="topnav"><span id="fieldForm"></span></div></div>
+    <h1 class="hero" style="font-size:clamp(30px,9vw,54px)">Seu Flu<br>dos sonhos</h1>
+    <div class="field" id="field">
+      <div class="center-circle"></div>
+      <div class="ovbox"><div class="lab">OVERALL</div><div class="val" id="ovVal">0</div></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="simulate()">Simular campanha &rarr;</button>
+      <button class="btn btn-ghost" onclick="openShare()">Codigo</button>
+      <button class="btn btn-ghost" onclick="goFormation()">Recomecar</button>
+    </div>
+  </section>
+
+  <!-- ===================== SIMULACAO ===================== -->
+  <section id="screen-sim" class="screen">
+    <div class="topbar"><div class="seal" onclick="show('screen-field')">&larr; Time</div><div class="topnav"><span>Campanha</span></div></div>
+    <h1 class="hero" style="font-size:clamp(30px,9vw,54px)">A campanha</h1>
+    <div id="matchList"></div>
+  </section>
+
+  <!-- ===================== FINAL ===================== -->
+  <section id="screen-final" class="screen">
+    <div id="finalBox" class="final-gold">
+      <div class="final-num" id="finalScore">4-1</div>
+      <div class="final-title" id="finalTitle"></div>
+      <p class="sub center" id="finalMsg" style="margin:0 auto 18px"></p>
+      <div class="actions" style="justify-content:center">
+        <button class="btn btn-primary" onclick="simulate()">Simular de novo</button>
+        <button class="btn btn-ghost" onclick="openShare()">Compartilhar time</button>
+        <button class="btn btn-ghost" onclick="goFormation()">Novo time</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SHARE ===================== -->
+  <section id="screen-share" class="screen">
+    <div class="topbar"><div class="seal" onclick="show('screen-field')">&larr; Voltar</div><div class="topnav"><span>Compartilhar</span></div></div>
+    <h1 class="hero" style="font-size:clamp(30px,9vw,54px)">Codigo do time</h1>
+    <p class="sub">Copie e envie. Quem receber pode carregar exatamente esta escalacao.</p>
+    <textarea id="shareOut" rows="4" readonly></textarea>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="copyCode()">Copiar codigo</button>
+      <span class="copyok" id="copyok" style="display:none">Copiado!</span>
+    </div>
+  </section>
+
+  <!-- ===================== LOAD ===================== -->
+  <section id="screen-load" class="screen">
+    <div class="topbar"><div class="seal" onclick="show('screen-landing')">&larr; Voltar</div><div class="topnav"><span>Carregar codigo</span></div></div>
+    <h1 class="hero" style="font-size:clamp(30px,9vw,54px)">Carregar<br>codigo</h1>
+    <p class="sub">Cole um codigo 4a1 para montar o time de outra pessoa.</p>
+    <textarea id="loadIn" rows="4" placeholder="Cole o codigo aqui..."></textarea>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="loadCode()">Carregar time</button>
+    </div>
+    <p class="hint" id="loadErr" style="color:#ff8a8a"></p>
+  </section>
+
+</div>
+
+<script>
+"use strict";
+/* ====================== DATABASE ====================== */
+/* Cada elenco: jogadores reais com rating 1-99 referente aquela temporada.   */
+/* Posicoes: GOL, LD, LE, ZAG, VOL, MEI, ATA                                   */
+var ELENCOS = [
+  {key:"maquina", nome:"Maquina Tricolor 1975-76", ano:"1975-76", desc:"A lendaria Maquina", players:[
+    ["Felix","GOL",88],["Miguel","GOL",73],["Carlos Alberto Torres","ZAG",90],["Edinho","ZAG",86],
+    ["Marco Antonio","LE",85],["Rodrigues Neto","LE",81],["Rubens Galaxe","LD",78],["Pintinho","VOL",83],
+    ["Mickey","VOL",79],["Moises","VOL",80],["Rivellino","MEI",92],["Paulo Cesar Caju","MEI",88],
+    ["Dirceu","MEI",84],["Gil","ATA",86],["Doval","ATA",84],["Cafuringa","ATA",83],["Manfrini","ATA",78]
+  ]},
+  {key:"bra84", nome:"Brasileiro 1984", ano:"1984", desc:"Campeao Brasileiro", players:[
+    ["Paulo Vitor","GOL",84],["Aldo","GOL",70],["Edinho","ZAG",87],["Duilio","ZAG",80],
+    ["Leomir","ZAG",76],["Vinicius","LE",78],["Ze Carlos","LD",77],["Vagner","VOL",81],
+    ["Paulo Cesar","VOL",80],["Assis","MEI",88],["Romerito","MEI",86],["Delei","MEI",79],
+    ["Marquinho","MEI",78],["Washington","ATA",85],["Tato","ATA",82],["Branco","ATA",79]
+  ]},
+  {key:"tri", nome:"Tri Carioca 1983-85", ano:"1983-85", desc:"Tricampeao Carioca", players:[
+    ["Paulo Vitor","GOL",83],["Ferreira","GOL",71],["Edinho","ZAG",86],["Duilio","ZAG",80],
+    ["Leomir","ZAG",76],["Branco","LE",83],["Ze Carlos","LD",77],["Vagner","VOL",81],
+    ["Paulo Cesar","VOL",80],["Assis","MEI",87],["Romerito","MEI",85],["Delei","MEI",78],
+    ["Marquinho","MEI",77],["Washington","ATA",84],["Tato","ATA",81],["Aldo","ATA",79]
+  ]},
+  {key:"car95", nome:"Carioca 1995", ano:"1995", desc:"O gol de barriga", players:[
+    ["Murilo","GOL",80],["Wagner","GOL",69],["Ailton","LD",76],["Marcao","ZAG",81],
+    ["Leonardo","ZAG",75],["Sandro","ZAG",72],["Marcelo Carioca","LE",77],["Fabinho","VOL",76],
+    ["Marquinhos","VOL",74],["Valber","MEI",80],["Marcelinho","MEI",78],["Ezio","ATA",84],
+    ["Renato Gaucho","ATA",86],["Roberto Gaucho","ATA",78],["Robson","ATA",76],["Beto","LE",71]
+  ]},
+  {key:"car02", nome:"Carioca 2002", ano:"2002", desc:"Campeao Carioca", players:[
+    ["Kleber","GOL",76],["Murilo","GOL",74],["Marcao","ZAG",79],["Fabiano Eller","ZAG",78],
+    ["Elson","LE",73],["Regis","LD",72],["Ramon","VOL",77],["Magrao","VOL",78],
+    ["Carlos Alberto","MEI",80],["Sorato","MEI",75],["Felipe","MEI",74],["Roger","ATA",84],
+    ["Romario","ATA",88],["Leandro Amaral","ATA",79],["Marcelo Ramos","ATA",77],["Beto","LD",71]
+  ]},
+  {key:"cb07", nome:"Copa do Brasil 2007", ano:"2007", desc:"Campeao Copa do Brasil", players:[
+    ["Fernando Henrique","GOL",80],["Ricardo Berna","GOL",71],["Gabriel","ZAG",78],["Thiago Silva","ZAG",84],
+    ["Luiz Alberto","ZAG",75],["Junior Cesar","LE",77],["Leo","LD",73],["Arouca","VOL",78],
+    ["Mauricio","VOL",76],["Thiago Neves","MEI",83],["Cicero","MEI",76],["Wendel","MEI",74],
+    ["Roger","ATA",83],["Adriano Magrao","ATA",78],["Alex Dias","ATA",76],["Soares","ATA",72]
+  ]},
+  {key:"lib08", nome:"Libertadores 2008", ano:"2008", desc:"Vice da Libertadores", players:[
+    ["Fernando Henrique","GOL",82],["Ricardo Berna","GOL",71],["Thiago Silva","ZAG",86],["Gabriel","ZAG",78],
+    ["Luiz Alberto","ZAG",75],["Junior Cesar","LE",78],["Carlinhos","LE",76],["Roger","LD",75],
+    ["Cicero","VOL",78],["Mauricio","VOL",77],["Arouca","VOL",78],["Conca","MEI",87],
+    ["Thiago Neves","MEI",85],["Washington","ATA",84],["Dodo","ATA",78],["Somalia","ATA",74]
+  ]},
+  {key:"bra10", nome:"Brasileiro 2010", ano:"2010", desc:"Campeao Brasileiro", players:[
+    ["Fernando Henrique","GOL",82],["Ricardo Berna","GOL",71],["Gum","ZAG",80],["Leandro Euzebio","ZAG",78],
+    ["Mariano","LD",79],["Nei","LD",72],["Carlinhos","LE",77],["Junior Cesar","LE",75],
+    ["Diguinho","VOL",78],["Emerson","VOL",76],["Marquinho","MEI",78],["Conca","MEI",89],
+    ["Washington","ATA",83],["Fred","ATA",86],["Rafael Sobis","ATA",80],["Alan","ATA",74]
+  ]},
+  {key:"bra12", nome:"Brasileiro 2012", ano:"2012", desc:"Campeao Brasileiro", players:[
+    ["Diego Cavalieri","GOL",83],["Samuel","GOL",70],["Gum","ZAG",81],["Leandro Euzebio","ZAG",78],
+    ["Mariano","LD",80],["Bruno","LD",73],["Carlinhos","LE",77],["Diguinho","VOL",78],
+    ["Jean","VOL",78],["Deco","MEI",84],["Thiago Neves","MEI",84],["Wagner","MEI",79],
+    ["Fred","ATA",88],["Rafael Sobis","ATA",81],["Wellington Nem","ATA",78],["Valencia","ATA",74]
+  ]},
+  {key:"car22", nome:"Carioca 2022", ano:"2022", desc:"Campeao Carioca", players:[
+    ["Fabio","GOL",83],["Marcos Felipe","GOL",73],["Nino","ZAG",82],["Manoel","ZAG",78],
+    ["Felipe Melo","ZAG",76],["Samuel Xavier","LD",78],["Cris Silva","LE",74],["Andre","VOL",84],
+    ["Yago Felipe","VOL",76],["Martinelli","VOL",75],["Ganso","MEI",84],["Nonato","MEI",76],
+    ["Arias","ATA",83],["Cano","ATA",86],["Luiz Henrique","ATA",80],["Willian Bigode","ATA",74]
+  ]},
+  {key:"lib23", nome:"Libertadores 2023", ano:"2023", desc:"Campeao da America", players:[
+    ["Fabio","GOL",84],["Marcos Felipe","GOL",73],["Nino","ZAG",83],["Felipe Melo","ZAG",76],
+    ["Manoel","ZAG",75],["Marcelo","LE",82],["Diogo Barbosa","LE",73],["Samuel Xavier","LD",79],
+    ["Andre","VOL",85],["Martinelli","VOL",77],["Alexsander","VOL",74],["Ganso","MEI",85],
+    ["Lima","MEI",77],["Arias","ATA",85],["Cano","ATA",87],["John Kennedy","ATA",78],["Keno","ATA",78]
+  ]},
+  {key:"mun24", nome:"Mundial / Recopa 2024-25", ano:"2024-25", desc:"Recopa & Mundial", players:[
+    ["Fabio","GOL",84],["Marcos Felipe","GOL",73],["Thiago Silva","ZAG",84],["Ignacio","ZAG",76],
+    ["Manoel","ZAG",75],["Rene","LE",75],["Diogo Barbosa","LE",73],["Samuel Xavier","LD",78],
+    ["Martinelli","VOL",78],["Bernal","VOL",76],["Hercules","VOL",78],["Ganso","MEI",84],
+    ["Lima","MEI",76],["Arias","ATA",85],["Cano","ATA",85],["Keno","ATA",77],["Serna","ATA",76]
+  ]}
+];
+
+/* Banco achatado: {id, nome, pos, rating, elenco, ano} */
+var PLAYERS = [];
+(function buildDB(){
+  var id=0;
+  for(var i=0;i<ELENCOS.length;i++){
+    var e=ELENCOS[i];
+    e.ids=[];
+    for(var j=0;j<e.players.length;j++){
+      var p=e.players[j];
+      var rec={id:id++, nome:p[0], pos:p[1], rating:p[2], elenco:e.key, ano:e.ano};
+      PLAYERS.push(rec);
+      e.ids.push(rec.id);
+    }
+  }
+})();
+function elencoByKey(k){ for(var i=0;i<ELENCOS.length;i++){ if(ELENCOS[i].key===k) return ELENCOS[i]; } return null; }
+function playerById(id){ return PLAYERS[id]; }
+
+/* Camisas da landing (numero + nome das lendas) */
+var JERSEYS=[["1","Felix"],["1","Fabio"],["3","Thiago Silva"],["4","C. Alberto"],["6","Branco"],
+  ["6","Marcelo"],["5","Assis"],["10","Rivellino"],["10","Conca"],["10","Ganso"],
+  ["7","Arias"],["9","Fred"],["9","Cano"],["9","Washington"]];
+
+/* Formacoes: 11 vagas + coordenadas no campo (left%, top%) */
+var FORMATIONS={
+  "4-3-3":{pos:["GOL","LD","ZAG","ZAG","LE","VOL","MEI","MEI","ATA","ATA","ATA"],
+    xy:[[50,90],[82,72],[62,76],[38,76],[18,72],[50,56],[70,48],[30,48],[80,24],[50,18],[20,24]]},
+  "4-4-2":{pos:["GOL","LD","ZAG","ZAG","LE","MEI","MEI","MEI","MEI","ATA","ATA"],
+    xy:[[50,90],[84,72],[62,76],[38,76],[16,72],[82,48],[58,46],[42,46],[18,48],[64,20],[36,20]]},
+  "3-5-2":{pos:["GOL","ZAG","ZAG","ZAG","LD","LE","VOL","MEI","MEI","ATA","ATA"],
+    xy:[[50,90],[70,78],[50,80],[30,78],[88,56],[12,56],[50,60],[68,44],[32,44],[62,20],[38,20]]},
+  "4-2-3-1":{pos:["GOL","LD","ZAG","ZAG","LE","VOL","VOL","MEI","MEI","MEI","ATA"],
+    xy:[[50,90],[84,72],[62,76],[38,76],[16,72],[62,58],[38,58],[80,40],[50,38],[20,40],[50,18]]}
+};
+
+/* Torneio: 3 grupos + 4 mata-mata, final contra Flamengo historico */
+var TOURNAMENT=[
+  {fase:"Grupo",adv:"Cerro Porteno",str:74},
+  {fase:"Grupo",adv:"Olimpia",str:75},
+  {fase:"Grupo",adv:"Nacional",str:76},
+  {fase:"Oitavas",adv:"River Plate",str:80},
+  {fase:"Quartas",adv:"Boca Juniors",str:81},
+  {fase:"Semi",adv:"Palmeiras",str:82},
+  {fase:"FINAL",adv:"Flamengo Historico",str:80}
+];
+
+/* ====================== STATE ====================== */
+var state={ formation:"4-3-3", slots:[], round:0, picked:null, currentElenco:null, rolled:false };
+
+/* ====================== UI ====================== */
+function show(id){
+  var s=document.getElementsByClassName("screen");
+  for(var i=0;i<s.length;i++) s[i].classList.remove("active");
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0,0);
+}
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function rint(n){ return Math.floor(Math.random()*n); }
+
+function renderLanding(){
+  var j=document.getElementById("jerseys"), h="";
+  for(var i=0;i<JERSEYS.length;i++){
+    h+='<div class="jcard"><div class="jnum">'+JERSEYS[i][0]+'</div><div class="jname">'+JERSEYS[i][1]+'</div></div>';
+  }
+  j.innerHTML=h;
+}
+function renderFormChips(){
+  var r=document.getElementById("formrow"), keys=Object.keys(FORMATIONS), h="";
+  for(var i=0;i<keys.length;i++){
+    var sel=keys[i]===state.formation?" sel":"";
+    h+='<button class="formchip'+sel+'" data-f="'+keys[i]+'" onclick="selForm(\''+keys[i]+'\')">'+keys[i]+'</button>';
+  }
+  r.innerHTML=h;
+}
+function selForm(k){ state.formation=k; renderFormChips(); }
+function goFormation(){ state.formation=state.formation||"4-3-3"; renderFormChips(); show("screen-formation"); }
+function confirmQuit(){ if(confirm("Sair do draft? O progresso sera perdido.")) show("screen-landing"); }
+
+/* ====================== DRAFT ====================== */
+function startDraft(){
+  var f=FORMATIONS[state.formation];
+  state.slots=[];
+  for(var i=0;i<f.pos.length;i++) state.slots.push({pos:f.pos[i], player:null, eff:0});
+  state.round=0; state.picked={}; state.currentElenco=null; state.rolled=false;
+  show("screen-draft"); renderDraftTarget();
+}
+function renderDraftTarget(){
+  document.getElementById("targetPos").textContent=state.slots[state.round].pos;
+  document.getElementById("progress").textContent="Vaga "+(state.round+1)+" de 11";
+  document.getElementById("elencoArea").style.display="none";
+  document.getElementById("diceArea").style.display="block";
+  document.getElementById("rollBtn").disabled=false;
+  document.getElementById("rollBtn").textContent="Rolar o dado";
+  state.rolled=false;
+}
+function rollDice(){
+  if(state.rolled) return;
+  var dice=document.getElementById("dice"), btn=document.getElementById("rollBtn");
+  btn.disabled=true;
+  dice.classList.remove("rolling"); void dice.offsetWidth; dice.classList.add("rolling");
+  setTimeout(function(){
+    state.currentElenco=elencoByKey(ELENCOS[rint(ELENCOS.length)].key);
+    state.rolled=true;
+    renderElencoPanel();
+    document.getElementById("diceArea").style.display="none";
+    document.getElementById("elencoArea").style.display="block";
+  },1100);
+}
+function renderElencoPanel(){
+  var e=state.currentElenco, target=state.slots[state.round].pos;
+  document.getElementById("elNome").textContent=e.nome;
+  document.getElementById("elDesc").textContent=e.desc+" - "+e.ano;
+  // ordena: na posicao primeiro, depois por rating
+  var list=e.ids.map(function(id){return playerById(id);}).slice();
+  list.sort(function(a,b){
+    var am=a.pos===target?0:1, bm=b.pos===target?0:1;
+    if(am!==bm) return am-bm;
+    return b.rating-a.rating;
+  });
+  var h="";
+  for(var i=0;i<list.length;i++){
+    var p=list[i], match=p.pos===target, used=!!state.picked[p.id];
+    var eff=match?p.rating:Math.max(1,p.rating-8);
+    var cls="prow"+(used?" used":(match?" match":" dim"));
+    h+='<div class="'+cls+'" onclick="pickPlayer('+p.id+')">'+
+        '<span class="ppos">'+p.pos+'</span>'+
+        '<span class="pname">'+p.nome+(used?' (escalado)':'')+'</span>'+
+        '<span class="prate">'+eff+'</span></div>';
+  }
+  document.getElementById("plist").innerHTML=h;
+}
+function pickPlayer(id){
+  if(state.picked[id]) return;
+  var p=playerById(id), slot=state.slots[state.round], match=p.pos===slot.pos;
+  slot.player=p; slot.eff=match?p.rating:Math.max(1,p.rating-8);
+  state.picked[id]=true;
+  state.round++;
+  if(state.round<state.slots.length) renderDraftTarget();
+  else showField();
+}
+
+/* ====================== CAMPO ====================== */
+function computeOverall(){
+  var sum=0,n=0;
+  for(var i=0;i<state.slots.length;i++){ if(state.slots[i].player){ sum+=state.slots[i].eff; n++; } }
+  return n?Math.round(sum/n):0;
+}
+function showField(){
+  var f=FORMATIONS[state.formation], field=document.getElementById("field");
+  // limpa spots antigos
+  var old=field.getElementsByClassName("spot");
+  while(old.length) old[0].remove();
+  for(var i=0;i<state.slots.length;i++){
+    var s=state.slots[i], xy=f.xy[i];
+    var d=document.createElement("div");
+    d.className="spot"; d.style.left=xy[0]+"%"; d.style.top=xy[1]+"%";
+    var nm=s.player?s.player.nome:"-";
+    d.innerHTML='<div class="shirt">'+s.eff+'</div><div class="nm">'+nm+'</div>';
+    field.appendChild(d);
+  }
+  document.getElementById("ovVal").textContent=computeOverall();
+  document.getElementById("fieldForm").textContent=state.formation;
+  show("screen-field");
+}
+
+/* ====================== SIMULACAO ====================== */
+function simMatch(overall,str,isFinal){
+  var diff=overall-str;
+  var myG, opG;
+  if(isFinal){
+    // final ajustada: times fortes tendem ao placar historico
+    myG=clamp(Math.round((overall-72)/3 + (Math.random()*1.4-0.5)),0,7);
+    opG=clamp(Math.round((str-overall)/6 + 1 + (Math.random()-0.6)),0,5);
+  }else{
+    myG=clamp(Math.round(2 + diff/4 + (Math.random()-0.5)*2),0,7);
+    opG=clamp(Math.round(2 - diff/4 + (Math.random()-0.5)*2),0,6);
+  }
+  return [myG,opG];
+}
+function simulate(){
+  var overall=computeOverall(), list=document.getElementById("matchList");
+  list.innerHTML=""; show("screen-sim");
+  var results=[];
+  for(var i=0;i<TOURNAMENT.length;i++){
+    var t=TOURNAMENT[i], isF=t.fase==="FINAL";
+    results.push({t:t, sc:simMatch(overall,t.str,isF)});
+  }
+  // revela um a um
+  var delay=0;
+  results.forEach(function(r,idx){
+    setTimeout(function(){
+      var win=r.sc[0]>r.sc[1], scls=win?"win":(r.sc[0]<r.sc[1]?"loss":"");
+      var row=document.createElement("div");
+      row.className="matchrow";
+      row.innerHTML='<span class="mfase">'+r.t.fase+'</span>'+
+        '<span class="mteams"><span class="me">FLU</span> x <span class="op">'+r.t.adv+'</span></span>'+
+        '<span class="mscore '+scls+'">'+r.sc[0]+' - '+r.sc[1]+'</span>';
+      list.appendChild(row);
+    }, delay);
+    delay+=650;
+  });
+  setTimeout(function(){ showFinal(results[results.length-1], overall); }, delay+700);
+}
+function showFinal(finalRes, overall){
+  var my=finalRes.sc[0], op=finalRes.sc[1];
+  var box=document.getElementById("finalBox");
+  document.getElementById("finalScore").textContent=my+"-"+op;
+  var historic = (my===4 && op===1);
+  if(historic){
+    box.className="final-gold lit gold";
+    document.getElementById("finalTitle").textContent="QUATRO A UM - NOITE HISTORICA";
+    document.getElementById("finalMsg").textContent="Seu Flu dos sonhos fez 4 a 1 no Flamengo. Entrou pra historia. Overall "+overall+".";
+    launchConfetti();
+  }else if(my>op){
+    box.className="final-gold";
+    document.getElementById("finalScore").style.color="#7fffce";
+    document.getElementById("finalTitle").textContent="CAMPEAO!";
+    document.getElementById("finalMsg").textContent="Voce venceu a final, mas nao foi o lendario 4 a 1. Tente de novo - overall "+overall+".";
+  }else{
+    box.className="final-gold";
+    document.getElementById("finalScore").style.color="#ff8a8a";
+    document.getElementById("finalTitle").textContent="VICE";
+    document.getElementById("finalMsg").textContent="O Flamengo levou a melhor desta vez. Reforce o time e volte. Overall "+overall+".";
+  }
+  if(historic) document.getElementById("finalScore").style.color="";
+  show("screen-final");
+}
+
+/* confete verde-grena-branco (CSS/JS puro) */
+function launchConfetti(){
+  var c=document.getElementById("confetti"); c.innerHTML="";
+  var cols=["#006341","#7A1525","#F5F0EA","#C9A227"];
+  for(var i=0;i<120;i++){
+    var d=document.createElement("div");
+    d.className="conf";
+    d.style.left=(Math.random()*100)+"vw";
+    d.style.background=cols[rint(cols.length)];
+    var dur=(2.4+Math.random()*2.2), del=Math.random()*1.2, x=(Math.random()*200-100);
+    d.style.animation="fall "+dur+"s linear "+del+"s forwards";
+    d.style.setProperty("--x",x+"px");
+    c.appendChild(d);
+  }
+  setTimeout(function(){ c.innerHTML=""; }, 6000);
+}
+/* keyframes de queda injetados (usa var(--x) com prefixo seguro) */
+(function injectFall(){
+  var st=document.createElement("style");
+  st.textContent="@keyframes fall{to{transform:translate(var(--x),105vh) rotate(720deg);opacity:.3}}";
+  document.head.appendChild(st);
+})();
+
+/* ====================== SHARE CODE ====================== */
+function buildCode(){
+  var ids=[];
+  for(var i=0;i<state.slots.length;i++) ids.push(state.slots[i].player?state.slots[i].player.id:-1);
+  var payload={f:state.formation, p:ids};
+  return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+function openShare(){
+  document.getElementById("shareOut").value=buildCode();
+  document.getElementById("copyok").style.display="none";
+  show("screen-share");
+}
+function copyCode(){
+  var ta=document.getElementById("shareOut");
+  ta.select(); ta.setSelectionRange(0,99999);
+  var done=function(){ document.getElementById("copyok").style.display="inline"; };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value).then(done,function(){ try{document.execCommand("copy");done();}catch(e){} });
+  }else{ try{document.execCommand("copy");done();}catch(e){} }
+}
+function loadCode(){
+  var raw=document.getElementById("loadIn").value.trim(), err=document.getElementById("loadErr");
+  err.textContent="";
+  try{
+    var obj=JSON.parse(decodeURIComponent(escape(atob(raw))));
+    if(!obj||!obj.f||!FORMATIONS[obj.f]||!obj.p||obj.p.length!==11) throw new Error("formato");
+    state.formation=obj.f;
+    var f=FORMATIONS[obj.f];
+    state.slots=[];
+    for(var i=0;i<11;i++){
+      var pid=obj.p[i], p=(pid>=0&&pid<PLAYERS.length)?playerById(pid):null;
+      var eff=p?(p.pos===f.pos[i]?p.rating:Math.max(1,p.rating-8)):0;
+      state.slots.push({pos:f.pos[i], player:p, eff:eff});
+    }
+    showField();
+  }catch(e){
+    err.textContent="Codigo invalido. Confira e tente de novo.";
+  }
+}
+
+/* ====================== BOOT ====================== */
+renderLanding();
+renderFormChips();
+</script>
+</body>
+</html>
