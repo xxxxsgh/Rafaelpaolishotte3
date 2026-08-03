@@ -1,5 +1,29 @@
 # Changelog
 
+## Star Wing — remake inspirado em Star Fox (`starwing/`)
+
+Remake do jogo em outro gênero, sem tocar no jogo original. Arquivo único
+`starwing/index.html`, sem dependências e sem WebGL.
+
+- **Motor 3D próprio sobre canvas 2D**: projeção em perspectiva com yaw/pitch/roll
+  de câmera, malhas montadas por primitivas (`boxMesh`, `prismMesh`, `coneMesh`,
+  `cylMesh`, `sphereMesh`, `ringMesh`, `slab`), algoritmo do pintor por objeto e
+  entre objetos, *flat shading* de duas faces e névoa por cenário.
+- **Voo on-rails** com corredor, terreno em grade perspectiva, montanhas
+  cíclicas, obstáculos e chefe no fim da fase; e **modo de alcance total**
+  (arena aberta com radar, meia-volta e indicador de alvo fora da tela).
+- **Manobras**: barrel roll que rebate tiros, turbo, freio, laser carregado com
+  trava de mira e bombas Nova com dano em área.
+- **Esquadrão**: Felipe, Takeshi e Deepseek voam em formação, abatem inimigos e
+  pedem socorro quando alguém gruda na cauda deles — se ninguém limpar, o piloto
+  fica fora do resto da missão. Rádio com retratos desenhados em canvas.
+- **7 missões** com os temas de fase e os chefes do jogo original, terminando em
+  Rafa Paoli. Medalhas, recordes e progresso em `localStorage`.
+- **Colisão contínua** (segmento × esfera) nos projéteis: a 900 u/s o laser
+  atravessava o inimigo entre dois quadros.
+- Áudio e trilha sintetizados na hora com a Web Audio API; suporte a teclado,
+  gamepad e toque (HUD reposicionado em telas de toque).
+
 ## v3.0 — Phase 1-4 refactor pass (branch `claude/shooter-ultimate-phase1-5EW9c`)
 
 ### Phase 1 — Game feel & juice

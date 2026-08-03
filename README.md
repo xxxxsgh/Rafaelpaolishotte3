@@ -3,6 +3,10 @@
 Space-shooter em HTML5 Canvas. Single-file (`index.html`), zero build step,
 zero dependências (exceto PeerJS via CDN, só pro modo Online).
 
+> 🚀 **Remake inspirado em Star Fox:** [`starwing/`](starwing/) — mesmo elenco e
+> mesmos chefes, mas em shooter 3D on-rails com renderizador poligonal próprio.
+> Veja [`starwing/README.md`](starwing/README.md).
+
 ## Rodar local
 
 Não precisa de bundler. Abre num servidor http simples:
