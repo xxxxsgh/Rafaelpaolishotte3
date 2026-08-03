@@ -3,6 +3,10 @@
 Space-shooter em HTML5 Canvas. Single-file (`index.html`), zero build step,
 zero dependências (exceto PeerJS via CDN, só pro modo Online).
 
+> 🆕 **Remake 3D**: existe uma versão tridimensional completa em [`3d/`](3d/)
+> (Three.js, câmera em terceira pessoa, mesmos personagens/chefes/modos).
+> Rode o servidor local e abra `http://localhost:8080/3d/`.
+
 ## Rodar local
 
 Não precisa de bundler. Abre num servidor http simples:

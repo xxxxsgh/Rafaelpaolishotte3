@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#020817">
+<title>Rafa Paoli's Shooter 3D — Neon Void</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas id="gl"></canvas>
+<div id="vignette"></div>
+<div id="flash"></div>
+
+<!-- ═══════════ HUD ═══════════ -->
+<div id="hud" class="hidden">
+  <div class="hud-top">
+    <div class="hud-block">
+      <div class="hud-label">CASCO</div>
+      <div id="hud-lives" class="hud-lives"></div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">PONTOS</div>
+      <div id="hud-score" class="hud-value">0</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">MOEDAS</div>
+      <div id="hud-coins" class="hud-value gold">0</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label" id="hud-mode-label">FASE</div>
+      <div id="hud-mode" class="hud-value cyan">1</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">COMBO</div>
+      <div id="hud-combo" class="hud-value pink">×1</div>
+    </div>
+  </div>
+
+  <div class="hud-left">
+    <div id="hud-buffs" class="buffs"></div>
+  </div>
+
+  <div class="hud-bottom">
+    <div class="xp-row">
+      <span id="hud-level" class="lvl">LV 1</span>
+      <div class="xp-bar"><div id="hud-xp" class="xp-fill"></div></div>
+    </div>
+    <div class="ability-row">
+      <div id="hud-ability" class="ability">
+        <div id="hud-ability-fill" class="ability-fill"></div>
+        <span id="hud-ability-name">HABILIDADE</span>
+        <span class="key">SHIFT</span>
+      </div>
+      <div id="hud-wave" class="wave-info"></div>
+    </div>
+  </div>
+
+  <div id="boss-bar" class="boss-bar hidden">
+    <div class="boss-name"><span id="boss-name"></span><small id="boss-sub"></small></div>
+    <div class="boss-track"><div id="boss-fill" class="boss-fill"></div></div>
+  </div>
+
+  <div id="banner" class="banner hidden"><h2 id="banner-title"></h2><p id="banner-sub"></p></div>
+  <div id="toasts" class="toasts"></div>
+  <div id="fps" class="fps hidden"></div>
+</div>
+
+<!-- ═══════════ OVERLAYS ═══════════ -->
+<div id="overlay" class="overlay hidden">
+  <div id="screen-main" class="screen">
+    <h1 class="title">RAFA PAOLI'S<br><span>SHOOTER 3D</span></h1>
+    <p class="subtitle">NEON VOID — REMAKE TRIDIMENSIONAL</p>
+    <div class="menu-grid">
+      <button class="btn primary" data-act="campaign">CAMPANHA <small>12 fases · 12 chefes</small></button>
+      <button class="btn" data-act="infinite">INFINITO <small>ondas sem fim</small></button>
+      <button class="btn" data-act="survivor">SURVIVOR <small>sobreviva o máximo</small></button>
+      <button class="btn" data-act="hangar">HANGAR <small>naves e skins</small></button>
+      <button class="btn" data-act="achievements">CONQUISTAS</button>
+      <button class="btn" data-act="settings">AJUSTES</button>
+    </div>
+    <div class="coin-bar">SALDO: <span id="main-coins">0</span> ⬤</div>
+    <p class="hint">WASD / setas mover · ESPAÇO atirar · SHIFT habilidade · P pausa</p>
+  </div>
+
+  <div id="screen-char" class="screen hidden">
+    <h2 class="head">SELECIONE A NAVE</h2>
+    <div id="char-list" class="card-grid"></div>
+    <h2 class="head">SKINS</h2>
+    <div id="skin-list" class="chip-grid"></div>
+    <div class="row">
+      <button class="btn" data-act="back">VOLTAR</button>
+      <button class="btn primary" data-act="to-diff">CONFIRMAR</button>
+    </div>
+  </div>
+
+  <div id="screen-diff" class="screen hidden">
+    <h2 class="head">DIFICULDADE</h2>
+    <div id="diff-list" class="card-grid"></div>
+    <div class="row"><button class="btn" data-act="back-char">VOLTAR</button></div>
+  </div>
+
+  <div id="screen-ach" class="screen hidden">
+    <h2 class="head">CONQUISTAS</h2>
+    <div id="ach-list" class="ach-grid"></div>
+    <div class="row"><button class="btn" data-act="back">VOLTAR</button></div>
+  </div>
+
+  <div id="screen-settings" class="screen hidden">
+    <h2 class="head">AJUSTES</h2>
+    <div class="settings">
+      <label class="setting"><span>VOLUME</span><input id="set-vol" type="range" min="0" max="1" step="0.05"></label>
+      <label class="setting"><span>EFEITOS SONOROS</span><input id="set-sfx" type="checkbox"></label>
+      <label class="setting"><span>MÚSICA</span><input id="set-music" type="checkbox"></label>
+      <label class="setting"><span>BLOOM (BRILHO)</span><input id="set-bloom" type="checkbox"></label>
+      <label class="setting"><span>QUALIDADE</span>
+        <select id="set-quality"><option value="low">BAIXA</option><option value="medium">MÉDIA</option><option value="high">ALTA</option></select>
+      </label>
+      <label class="setting"><span>MOSTRAR FPS</span><input id="set-fps" type="checkbox"></label>
+    </div>
+    <div class="row">
+      <button class="btn danger" data-act="reset">APAGAR PROGRESSO</button>
+      <button class="btn" data-act="back">VOLTAR</button>
+    </div>
+  </div>
+
+  <div id="screen-pause" class="screen hidden">
+    <h2 class="head">PAUSADO</h2>
+    <div id="pause-stats" class="stat-list"></div>
+    <div class="menu-grid narrow">
+      <button class="btn primary" data-act="resume">CONTINUAR</button>
+      <button class="btn" data-act="restart">REINICIAR</button>
+      <button class="btn danger" data-act="quit">SAIR PRO MENU</button>
+    </div>
+  </div>
+
+  <div id="screen-levelup" class="screen hidden">
+    <h2 class="head lvl-head">NÍVEL <span id="lvl-num">2</span></h2>
+    <p class="subtitle">ESCOLHA UM APRIMORAMENTO</p>
+    <div id="lvl-cards" class="card-grid"></div>
+  </div>
+
+  <div id="screen-over" class="screen hidden">
+    <h2 id="over-title" class="head danger-text">MISSÃO FALHOU</h2>
+    <div id="over-stats" class="stat-list"></div>
+    <div class="menu-grid narrow">
+      <button class="btn primary" data-act="restart">TENTAR DE NOVO</button>
+      <button class="btn" data-act="quit">MENU PRINCIPAL</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading" class="loading"><div class="ring"></div><p>CARREGANDO O VAZIO…</p></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
