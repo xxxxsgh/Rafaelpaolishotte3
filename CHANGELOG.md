@@ -1,5 +1,29 @@
 # Changelog
 
+## 3D remake (branch `claude/game-3d-remake-qbz70v`)
+
+Novo diretório `3d/` — remake tridimensional do jogo em Three.js, como rail
+shooter espacial (nave se move em X/Y, inimigos vêm de −Z). Não altera o jogo
+2D; os dois convivem no mesmo repositório e usam saves separados.
+
+- **Conteúdo portado 1:1**: 8 personagens (speed / cooldown / dmgMult / preço),
+  12 bosses (vida, padrão de tiro, movimento, recompensa), 8 tipos de inimigo,
+  5 power-ups com as mesmas probabilidades, skill tree de 4×10, 12 skins,
+  22 conquistas, 15 upgrades de run, score/moedas/combo idênticos.
+- **Modos**: Campanha (12 fases), Infinite (waves + nuke/cura/escudo),
+  Survivor (XP + level-up com 3 opções), Boss Rush, co-op local de 2 players.
+- **Engine**: passo fixo de 60 Hz com acumulador; relógio próprio que congela
+  na pausa (cooldowns e eventos agendados param junto); pool de meshes para
+  projéteis; sistema de partículas único em `THREE.Points` (2400 partículas).
+- **Cena**: corredor de 4 paredes em grid + molduras de velocidade, nebulosa
+  de fundo, starfield com scroll, fog por tema de fase (12 temas), screen
+  shake, flash de tela, textos flutuantes 3D.
+- **Adaptações do 2D**: movimento vertical, assistência de mira + retículo de
+  dois anéis, padrões de tiro dos bosses remapeados para o plano X/Y avançando
+  em Z, convergência suave dos inimigos. O Turbo do Felipe passou a ter efeito
+  (no 2D a habilidade só marcava o timer).
+- **Sem CDN**: Three.js r160 versionado em `3d/vendor/three.min.js`.
+
 ## v3.0 — Phase 1-4 refactor pass (branch `claude/shooter-ultimate-phase1-5EW9c`)
 
 ### Phase 1 — Game feel & juice

@@ -3,6 +3,9 @@
 Space-shooter em HTML5 Canvas. Single-file (`index.html`), zero build step,
 zero dependências (exceto PeerJS via CDN, só pro modo Online).
 
+> 🚀 **Novo: remake 3D** em `3d/` — mesmo jogo em Three.js, como rail shooter
+> espacial. Acessa `/3d/` no servidor local. Documentação: [`3d/README.md`](3d/README.md).
+
 ## Rodar local
 
 Não precisa de bundler. Abre num servidor http simples:
@@ -40,6 +43,7 @@ Acessa `http://localhost:8080/`.
 | `js/14-expansion-extras.js` | Crafting, daily rewards, faction reputation, extended skill tree, sound system, perf monitor, easter eggs, leaderboard, weapons, boss loot, synergy. |
 | `js/15-expansion-tail.js` | Final content + boost + gap-filler. |
 | `sw.js` | Service Worker (cacheia todos os 15 chunks). |
+| `3d/` | Remake 3D em Three.js (jogo independente — ver `3d/README.md`). |
 | `preview/` | Demos standalone (testáveis isolados — usados pra QA mobile). |
 | `README.md` / `CHANGELOG.md` | Documentação. |
 
