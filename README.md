@@ -3,6 +3,13 @@
 Space-shooter em HTML5 Canvas. Single-file (`index.html`), zero build step,
 zero dependências (exceto PeerJS via CDN, só pro modo Online).
 
+> **🎮 Tem um remake em [`remake/`](remake/)** — o jogo reconstruído do zero
+> em 13 módulos ES: timestep fixo, movimento 2D, formações de onda desenhadas,
+> 10 chefes reescritos e progressão roguelite em todos os modos.
+> Rode em `http://localhost:8080/remake/` e leia o
+> [README dele](remake/README.md). Este `index.html` da raiz continua
+> sendo o jogo original, intocado.
+
 ## Rodar local
 
 Não precisa de bundler. Abre num servidor http simples:
